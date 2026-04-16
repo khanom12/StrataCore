@@ -114,11 +114,15 @@ describe('legacy output regression matrix', () => {
     const fixture = getLegacyOutputCase('house-garage-with-walkout');
     const result = generateLetter(fixture!.formState);
     const p2 = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P2')?.text ?? '';
+    const walkoutIndex = p2.indexOf('rear walkout basement');
+    const garageIndex = p2.indexOf('garage footing area');
 
     expect(fixture?.status).toBe('partial');
     expect(result.visibleSections).toContain('P5');
     expect(p2).toContain('garage footing area');
     expect(p2).toContain('frost wall');
+    expect(walkoutIndex).toBeGreaterThanOrEqual(0);
+    expect(garageIndex).toBeGreaterThan(walkoutIndex);
     expect(result.reviewFlags.some((flag) => flag.id === 'review-walkout-garage-ordering')).toBe(true);
   });
 

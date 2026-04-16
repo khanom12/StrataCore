@@ -330,14 +330,14 @@ export const legacyOutputCases: LegacyOutputCaseManifest[] = [
     expectedPositiveTextCues: ['rear walkout basement', 'garage footing area', 'frost wall'],
     expectedAbsentTextCues: ['P3A'],
     expectedSpecialShellBehaviors: ['Reviewed by signoff block'],
-    notes: ['The exact “extra material removed at the back for the frost wall” phrasing still remains review-sensitive.'],
+    notes: ['The combined walkout-plus-garage ordering now follows the seed-backed office default, but the exact historical-family structure remains review-sensitive.'],
     currentCapabilitySummary: {
       canCurrentCodeReproduce: false,
-      missingDomainFields: ['explicit walkout frost-wall delta/removal wording'],
+      missingDomainFields: [],
       inputDependencies: ['walkoutBasement + garage mode must coexist cleanly'],
-      generationGaps: ['P2 wording is structurally close but not yet a line-for-line historical match'],
+      generationGaps: ['Combined walkout + garage wording remains review-sensitive until the office confirms the exact historical-family structure.'],
       compositionGaps: [],
-      recommendedTests: ['walkout and garage sentences remain in historical order']
+      recommendedTests: ['walkout ordering follows the seed-backed combined-case family', 'combined-case review flag remains visible while ambiguity stays open']
     },
     formState: withOverrides(victoryBase, {
       topBlock: {

@@ -47,8 +47,32 @@ describe('composeLetterDocument', () => {
       page.bodyBlocks.filter((block): block is Extract<LetterDocumentBodyBlock, { kind: 'paragraph_block' }> => block.kind === 'paragraph_block').map((block) => block.sectionId)
     );
 
-    expect(document.pages.map((page) => page.kind)).toEqual(['first_page', 'continuation_page']);
+    expect(document.pages[0]?.kind).toBe('first_page');
+    expect(document.pages.slice(1).every((page) => page.kind === 'continuation_page')).toBe(true);
     expect(orderedSections).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P7', 'CLOSING']);
+  });
+
+  it('uses layout-intent pagination for longer drafts instead of a fixed section split plus naive count chunking', () => {
+    const formState = cloneFormState(genericHappyPath);
+    formState.reportBody.excavation.waterIssueMode = 'free_water_in_auger_holes_upgraded_drainage';
+    formState.reportBody.excavation.waterObservedDepthBelowFootingM = 0.4;
+    formState.reportBody.recommendation.drainageUpgradeVariant = 'washed_rock_interior_exterior_two_laterals';
+    formState.reportBody.recommendation.drainageDrawingAttached = true;
+    formState.reportBody.excavation.oversizedTrenchMode = 'reinforcement';
+    formState.reportBody.excavation.trenchLocation = 'front_left';
+    formState.reportBody.excavation.frostDepthMm = 200;
+    formState.reportBody.sulphate.includeParagraph = true;
+    formState.reportBody.sulphate.sulphateClass = 'moderate';
+
+    const result = generateLetter(formState);
+    const document = composeLetterDocument(formState, result);
+    const continuationPages = document.pages.filter((page) => page.kind === 'continuation_page');
+    const lastPage = document.pages.at(-1);
+
+    expect(document.pages.length).toBeGreaterThan(2);
+    expect(continuationPages.every((page) => page.headerBlock.role === 'continuation_subject')).toBe(true);
+    expect(lastPage?.bodyBlocks.some((block) => block.kind === 'signoff_block')).toBe(true);
+    expect(lastPage?.footerBlock.archivePathLine).toContain('.docx');
   });
 
   it('keeps the Victory reference office address and continuation header in the composed shell', () => {
@@ -104,14 +128,14 @@ describe('composeLetterDocument', () => {
     const formState = cloneFormState(victoryHomes2026IssuedExample);
     const result = generateLetter(formState);
     const document = composeLetterDocument(formState, result);
-    const signoff = document.pages[1].bodyBlocks.find(
+    const signoff = document.pages.at(-1)?.bodyBlocks.find(
       (block): block is Extract<LetterDocumentBodyBlock, { kind: 'signoff_block' }> => block.kind === 'signoff_block'
     );
 
     expect(signoff?.lines.some((line) => line.label === 'Reviewed by,' && line.value === 'Scott MacFarlane, P.Eng.')).toBe(true);
     expect(signoff?.engineerMemberNumberLine).toBe('APEGA Member #: 89667');
     expect(flattenBodyText(document.pages.at(-1)?.bodyBlocks ?? [])).not.toContain('placeholder');
-    expect(document.pages[1].footerBlock.offices).toEqual([
+    expect(document.pages.at(-1)?.footerBlock.offices).toEqual([
       { city: 'EDMONTON', phone: '780-489-0700' },
       { city: 'GRANDE PRAIRIE', phone: '780-532-1515' },
       { city: 'PEACE RIVER', phone: '780-624-4966' }

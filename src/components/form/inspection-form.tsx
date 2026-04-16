@@ -3,20 +3,25 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 
+import { describeDraftSource } from '@/lib/draft/draft-source';
 import { deriveHouseCutRange } from '@/lib/domain/report-helpers';
+import { loadDraftSessionState, saveDraftSessionState, type DraftSessionState } from '@/lib/draft/draft-session';
 import { buildFallbackSoilLayer, getPrimarySoilFieldsFromLayer } from '@/lib/domain/soil-layers';
-import { defaultFormState } from '@/lib/draft/default-form-state';
+import { blankWorkingDraftFormState, defaultFormState } from '@/lib/draft/default-form-state';
 import { loadDraftState, saveDraftState } from '@/lib/draft/storage';
+import { ANALYST_CONTROL_GROUPS } from '@/lib/form/analyst-controls';
+import { buildDraftWorkflowState, groupValidationIssuesByFieldPath } from '@/lib/form/build-draft-workflow';
 import {
   DEFERRED_MANUAL_BRANCHES,
   getActiveDocumentMode,
   getFormInputVisibility,
   getSoilDescriptorVisibility
 } from '@/lib/form/dependencies';
+import { getFieldPathAnchorId } from '@/lib/form/field-paths';
 import { normalizeDependentFormState } from '@/lib/form/normalize-dependent-state';
 import { cloneFormState, getReferenceCasePreset, identifyReferenceCasePreset, type ReferenceCasePreset } from '@/lib/reference-cases';
 import { formatSignoffName, getEngineerRegistry, resolveSignoffProfile } from '@/lib/signoff/engineer-registry';
-import type { FormState, SoilInputs, SoilLayerDescriptor } from '@/types/domain';
+import type { FormState, SoilInputs, SoilLayerDescriptor, ValidationIssue } from '@/types/domain';
 
 function selectedValues(event: ChangeEvent<HTMLSelectElement>) {
   return Array.from(event.target.selectedOptions).map((option) => option.value);
@@ -54,9 +59,18 @@ function getDraftLabel(preset: ReferenceCasePreset | undefined) {
   return preset ? getClientPresetLabel(preset.id, preset.label) : 'Custom local draft';
 }
 
+function getReadinessStatusTone(status: 'ready' | 'review_required' | 'blocked') {
+  if (status === 'blocked') {
+    return 'blocked';
+  }
+
+  return status === 'review_required' ? 'accent' : 'success';
+}
+
 export function InspectionForm() {
   const router = useRouter();
   const [formState, setFormState] = useState<FormState>(defaultFormState);
+  const [draftSession, setDraftSession] = useState<DraftSessionState>({});
   const [hasHydrated, setHasHydrated] = useState(false);
   const [statusMessage, setStatusMessage] = useState('Loading saved draft...');
   const [statusTone, setStatusTone] = useState<StatusTone>('neutral');
@@ -66,6 +80,16 @@ export function InspectionForm() {
   const matchedPreset = useMemo(() => identifyReferenceCasePreset(formState), [formState]);
   const dependencyVisibility = useMemo(() => getFormInputVisibility(formState), [formState]);
   const activeDocumentMode = useMemo(() => getActiveDocumentMode(), []);
+  const workflowState = useMemo(() => buildDraftWorkflowState(formState), [formState]);
+  const fieldIssueGroups = useMemo(
+    () => groupValidationIssuesByFieldPath(workflowState.validationIssues),
+    [workflowState.validationIssues]
+  );
+  const activeDeferredBranches = useMemo(
+    () => workflowState.deferredManualBranches.filter((branch) => branch.active),
+    [workflowState.deferredManualBranches]
+  );
+  const draftSource = useMemo(() => describeDraftSource(formState, draftSession), [draftSession, formState]);
   const signoffProfiles = useMemo(() => getEngineerRegistry(), []);
   const signoffOptions = useMemo(
     () => signoffProfiles.map((profile) => [formatSignoffName(profile), formatSignoffName(profile)] as [string, string]),
@@ -77,11 +101,13 @@ export function InspectionForm() {
   const isLayeredSoil = dependencyVisibility.reportBody.soil.showLayeredInputs;
   const engineeredFillLayer = formState.reportBody.soil.engineeredFillLayer ?? buildFallbackSoilLayer(formState.reportBody.soil);
   const underlyingNativeLayer = formState.reportBody.soil.underlyingNativeLayer ?? buildFallbackSoilLayer(formState.reportBody.soil);
-  const currentDraftLabel = getDraftLabel(matchedPreset);
+  const firstBlockingIssue = workflowState.validationIssues[0];
 
   useEffect(() => {
     const nextState = normalizeDependentFormState(loadDraftState());
+    const savedSession = loadDraftSessionState();
     const initialPreset = identifyReferenceCasePreset(nextState);
+    const nextSession = savedSession.sourcePresetId ? savedSession : initialPreset ? { sourcePresetId: initialPreset.id } : {};
 
     pendingStatusRef.current = {
       message: initialPreset ? `${getDraftLabel(initialPreset)} ready locally.` : 'Saved local draft ready.',
@@ -89,6 +115,7 @@ export function InspectionForm() {
     };
 
     setFormState(nextState);
+    setDraftSession(nextSession);
     setHasHydrated(true);
   }, []);
 
@@ -98,6 +125,7 @@ export function InspectionForm() {
     }
 
     saveDraftState(formState);
+    saveDraftSessionState(draftSession);
 
     if (pendingStatusRef.current) {
       setStatusMessage(pendingStatusRef.current.message);
@@ -108,7 +136,41 @@ export function InspectionForm() {
 
     setStatusMessage('Saved locally.');
     setStatusTone('success');
-  }, [formState, hasHydrated]);
+  }, [draftSession, formState, hasHydrated]);
+
+  useEffect(() => {
+    if (!hasHydrated || typeof window === 'undefined') {
+      return;
+    }
+
+    const focusFromHash = () => {
+      const anchorId = decodeURIComponent(window.location.hash).replace(/^#/, '');
+
+      if (!anchorId) {
+        return;
+      }
+
+      const target = document.getElementById(anchorId);
+
+      if (!target) {
+        return;
+      }
+
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const focusTarget =
+        target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement
+          ? target
+          : target.querySelector('input, select, textarea, button');
+
+      if (focusTarget instanceof HTMLElement) {
+        focusTarget.focus();
+      }
+    };
+
+    focusFromHash();
+    window.addEventListener('hashchange', focusFromHash);
+    return () => window.removeEventListener('hashchange', focusFromHash);
+  }, [hasHydrated]);
 
   function updateState(updater: (current: FormState) => FormState) {
     setFormState((current) => normalizeDependentFormState(updater(current)));
@@ -244,6 +306,7 @@ export function InspectionForm() {
 
   function openPreview() {
     saveDraftState(formState);
+    saveDraftSessionState(draftSession);
     setStatusMessage('Opening preview with the latest saved draft...');
     setStatusTone('accent');
     router.push('/preview');
@@ -261,7 +324,46 @@ export function InspectionForm() {
       tone: 'accent'
     };
 
+    setDraftSession({ sourcePresetId: preset.id });
     setFormState(normalizeDependentFormState(cloneFormState(preset.formState)));
+  }
+
+  function startFreshDraft() {
+    pendingStatusRef.current = {
+      message: 'Blank working draft loaded and saved locally.',
+      tone: 'accent'
+    };
+
+    setDraftSession({});
+    setFormState(normalizeDependentFormState(cloneFormState(blankWorkingDraftFormState)));
+  }
+
+  function jumpToField(fieldPath: string) {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const anchorId = getFieldPathAnchorId(fieldPath);
+    window.history.replaceState(null, '', `#${anchorId}`);
+    const target = document.getElementById(anchorId);
+
+    if (!target) {
+      return;
+    }
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const focusTarget =
+      target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement
+        ? target
+        : target.querySelector('input, select, textarea, button');
+
+    if (focusTarget instanceof HTMLElement) {
+      focusTarget.focus();
+    }
+  }
+
+  function getFieldIssues(fieldPath: string): ValidationIssue[] {
+    return fieldIssueGroups[fieldPath] ?? [];
   }
 
   function handlePreparedBySelect(value: string) {
@@ -296,6 +398,90 @@ export function InspectionForm() {
   return (
     <div className="workflow-layout">
       <div className="workflow-main">
+        <section className="section-card" id="workflow-status">
+          <div className="section-heading">
+            <p className="muted">Workflow status</p>
+            <h2>Working draft readiness</h2>
+            <p className="section-intro">
+              Use this summary to catch export blockers early, review unresolved analyst notes, and jump back to the exact input that needs work.
+            </p>
+          </div>
+          <div className={`status-banner status-banner--${getReadinessStatusTone(workflowState.readiness.status)}`}>
+            <strong>{workflowState.readiness.label}</strong>
+            <p>{draftSource.detail}</p>
+          </div>
+          <div className="summary-grid summary-grid--four">
+            <div className="summary-item">
+              <span>Readiness</span>
+              <strong>{workflowState.readiness.status === 'ready' ? 'Ready' : workflowState.readiness.status === 'blocked' ? 'Blocked' : 'Review required'}</strong>
+            </div>
+            <div className="summary-item">
+              <span>Blocking issues</span>
+              <strong>{workflowState.validationIssues.length}</strong>
+            </div>
+            <div className="summary-item">
+              <span>Analyst review notes</span>
+              <strong>{workflowState.reviewFlags.length}</strong>
+            </div>
+            <div className="summary-item">
+              <span>Draft source</span>
+              <strong>{draftSource.label}</strong>
+            </div>
+          </div>
+          <div className="issue-summary-grid">
+            <div className="issue-summary-card">
+              <h3>Blocking issues</h3>
+              {workflowState.validationIssues.length === 0 ? (
+                <p className="muted">No active blockers are currently preventing export.</p>
+              ) : (
+                workflowState.validationIssues.map((issue) => (
+                  <div key={issue.id} className="issue-summary-item">
+                    <div>
+                      <strong>{issue.title}</strong>
+                      <p>{issue.message}</p>
+                    </div>
+                    {issue.fieldPath ? (
+                      <button className="secondary issue-summary-item__action" type="button" onClick={() => jumpToField(issue.fieldPath!)}>
+                        Jump to field
+                      </button>
+                    ) : null}
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="issue-summary-card">
+              <h3>Analyst review notes</h3>
+              {workflowState.reviewFlags.length === 0 ? (
+                <p className="muted">No review-sensitive wording branches are active in the current draft.</p>
+              ) : (
+                workflowState.reviewFlags.map((flag) => (
+                  <div key={flag.id} className="issue-summary-item">
+                    <div>
+                      <strong>{flag.title}</strong>
+                      <p>{flag.message}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="issue-summary-card">
+              <h3>Manual / deferred branches</h3>
+              {activeDeferredBranches.length === 0 ? (
+                <p className="muted">No deferred manual branches are active in the current draft.</p>
+              ) : (
+                activeDeferredBranches.map((branch) => (
+                  <div key={branch.id} className="issue-summary-item">
+                    <div>
+                      <strong>{branch.description}</strong>
+                      <p className="mono">{branch.fieldPath}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </section>
+
         <section className="section-card">
           <div className="section-heading">
             <p className="muted">Project setup</p>
@@ -323,20 +509,6 @@ export function InspectionForm() {
             />
             <Field label="File number" value={formState.topBlock.fileNumber} onChange={(value) => updateTopBlock('fileNumber', value)} />
             <Field label="Client name" value={formState.topBlock.clientName} onChange={(value) => updateTopBlock('clientName', value)} />
-            <SelectField
-              label="Subject line style"
-              value={formState.topBlock.subjectLineFamily}
-              onChange={(value) => updateTopBlock('subjectLineFamily', value as FormState['topBlock']['subjectLineFamily'])}
-              options={[
-                ['singular', 'Foundation Soil Inspection'],
-                ['plural', 'Foundation Soils Inspection']
-              ]}
-            />
-            <Field
-              label="Heading detail (optional)"
-              value={formState.topBlock.headingSuffix ?? ''}
-              onChange={(value) => updateTopBlock('headingSuffix', value)}
-            />
             <Field label="Municipality" value={formState.topBlock.municipality} onChange={(value) => updateTopBlock('municipality', value)} />
             <TextAreaField
               className="full"
@@ -351,7 +523,7 @@ export function InspectionForm() {
             />
             {dependencyVisibility.topBlock.showLegalDescriptionMode ? (
               <SelectField
-                label="Land description format"
+                label="Legal description format"
                 value={formState.topBlock.legalDescriptionMode}
                 onChange={(value) => updateTopBlock('legalDescriptionMode', value as FormState['topBlock']['legalDescriptionMode'])}
                 options={[
@@ -367,11 +539,35 @@ export function InspectionForm() {
             />
             {dependencyVisibility.topBlock.showSingleLotFields ? (
               <>
-                <Field label="Lot" value={formState.topBlock.lot ?? ''} onChange={(value) => updateTopBlock('lot', value)} />
-                <Field label="Block" value={formState.topBlock.block ?? ''} onChange={(value) => updateTopBlock('block', value)} />
-                <Field label="Plan" value={formState.topBlock.plan ?? ''} onChange={(value) => updateTopBlock('plan', value)} />
+                <Field
+                  label="Lot"
+                  value={formState.topBlock.lot ?? ''}
+                  onChange={(value) => updateTopBlock('lot', value)}
+                  fieldPath="topBlock.lot"
+                  errors={getFieldIssues('topBlock.lot')}
+                />
+                <Field
+                  label="Block"
+                  value={formState.topBlock.block ?? ''}
+                  onChange={(value) => updateTopBlock('block', value)}
+                  fieldPath="topBlock.block"
+                  errors={getFieldIssues('topBlock.block')}
+                />
+                <Field
+                  label="Plan"
+                  value={formState.topBlock.plan ?? ''}
+                  onChange={(value) => updateTopBlock('plan', value)}
+                  fieldPath="topBlock.plan"
+                  errors={getFieldIssues('topBlock.plan')}
+                />
                 {dependencyVisibility.topBlock.showStreetAddress ? (
-                  <Field label="Site address" value={formState.topBlock.streetAddress} onChange={(value) => updateTopBlock('streetAddress', value)} />
+                  <Field
+                    label="Site address"
+                    value={formState.topBlock.streetAddress}
+                    onChange={(value) => updateTopBlock('streetAddress', value)}
+                    fieldPath="topBlock.streetAddress"
+                    errors={getFieldIssues('topBlock.streetAddress')}
+                  />
                 ) : null}
               </>
             ) : null}
@@ -380,6 +576,8 @@ export function InspectionForm() {
                 className="full"
                 label="Custom legal description"
                 value={(formState.topBlock.customLegalDescriptionLines ?? []).join('\n')}
+                fieldPath="topBlock.customLegalDescriptionLines"
+                errors={getFieldIssues('topBlock.customLegalDescriptionLines')}
                 onChange={(value) =>
                   updateTopBlock(
                     'customLegalDescriptionLines',
@@ -398,21 +596,12 @@ export function InspectionForm() {
             />
             {dependencyVisibility.topBlock.showClientJobNumber ? (
               <>
-                <SelectField
-                  label="Client reference label"
-                  value={formState.topBlock.clientReferenceLabelFamily}
-                  onChange={(value) =>
-                    updateTopBlock('clientReferenceLabelFamily', value as FormState['topBlock']['clientReferenceLabelFamily'])
-                  }
-                  options={[
-                    ['client_job_no', 'Client Job No.'],
-                    ['job_hash', 'Job#']
-                  ]}
-                />
                 <Field
                   label="Client reference number"
                   value={formState.topBlock.clientJobNumber ?? ''}
                   onChange={(value) => updateTopBlock('clientJobNumber', value)}
+                  fieldPath="topBlock.clientJobNumber"
+                  errors={getFieldIssues('topBlock.clientJobNumber')}
                 />
               </>
             ) : null}
@@ -472,6 +661,8 @@ export function InspectionForm() {
                 type="number"
                 value={formState.reportBody.excavation.walkoutExtraRearRemovalM?.toString() ?? ''}
                 onChange={(value) => updateExcavation('walkoutExtraRearRemovalM', value ? Number(value) : undefined)}
+                fieldPath="reportBody.excavation.walkoutExtraRearRemovalM"
+                errors={getFieldIssues('reportBody.excavation.walkoutExtraRearRemovalM')}
               />
             ) : null}
             <SelectField
@@ -507,7 +698,7 @@ export function InspectionForm() {
               ]}
             />
             <SelectField
-              label="Oversized trench handling"
+              label="Oversized trench observation"
               value={formState.reportBody.excavation.oversizedTrenchMode ?? 'none'}
               onChange={(value) =>
                 updateExcavation('oversizedTrenchMode', value as FormState['reportBody']['excavation']['oversizedTrenchMode'])
@@ -532,7 +723,7 @@ export function InspectionForm() {
               />
             ) : null}
             <SelectField
-              label="Loose material handling"
+              label="Loose material observation"
               value={formState.reportBody.excavation.looseMaterialMode ?? 'none'}
               onChange={(value) => updateExcavation('looseMaterialMode', value as FormState['reportBody']['excavation']['looseMaterialMode'])}
               options={[
@@ -554,7 +745,7 @@ export function InspectionForm() {
               onChange={(value) => updateExcavation('frostDepthMm', value ? Number(value) : undefined)}
             />
             <SelectField
-              label="Water condition"
+              label="Water / saturation observation"
               value={formState.reportBody.excavation.waterIssueMode ?? 'none'}
               onChange={(value) => updateExcavation('waterIssueMode', value as FormState['reportBody']['excavation']['waterIssueMode'])}
               options={[
@@ -571,6 +762,8 @@ export function InspectionForm() {
                 type="number"
                 value={formState.reportBody.excavation.waterObservedDepthBelowFootingM?.toString() ?? ''}
                 onChange={(value) => updateExcavation('waterObservedDepthBelowFootingM', value ? Number(value) : undefined)}
+                fieldPath="reportBody.excavation.waterObservedDepthBelowFootingM"
+                errors={getFieldIssues('reportBody.excavation.waterObservedDepthBelowFootingM')}
               />
             ) : null}
             <Field
@@ -628,21 +821,27 @@ export function InspectionForm() {
                   type="number"
                   value={formState.reportBody.soil.fillDepthBelowFootingMm?.toString() ?? ''}
                   onChange={(value) => updateSoil('fillDepthBelowFootingMm', value ? Number(value) : undefined)}
+                  fieldPath="reportBody.soil.fillDepthBelowFootingMm"
+                  errors={getFieldIssues('reportBody.soil.fillDepthBelowFootingMm')}
                 />
                 <div className="field full">
                   <p className="note">
-                    Layered soil mode is active. The upper fill layer is used as the main soil description, with the native layer kept for traceability.
+                    Fill-over-native soil wording is active. Enter the upper fill layer first, then the native material below it.
                   </p>
                 </div>
                 <SoilLayerFieldSet
                   title="Upper fill layer"
                   layer={engineeredFillLayer}
                   onChange={(key, value) => updateSoilLayer('engineeredFillLayer', key, value)}
+                  fieldPath="reportBody.soil.engineeredFillLayer"
+                  errors={getFieldIssues('reportBody.soil.engineeredFillLayer')}
                 />
                 <SoilLayerFieldSet
                   title="Underlying native layer"
                   layer={underlyingNativeLayer}
                   onChange={(key, value) => updateSoilLayer('underlyingNativeLayer', key, value)}
+                  fieldPath="reportBody.soil.underlyingNativeLayer"
+                  errors={getFieldIssues('reportBody.soil.underlyingNativeLayer')}
                 />
               </>
             ) : (
@@ -783,35 +982,13 @@ export function InspectionForm() {
 
         <section className="section-card">
           <div className="section-heading">
-            <p className="muted">Footing direction</p>
-            <h2>Foundation recommendations</h2>
+            <p className="muted">Garage and drainage</p>
+            <h2>Garage and remediation triggers</h2>
             <p className="section-intro">
-              Choose the footing basis, bearing wording, and any garage-specific conditions that should accompany the recommendation.
+              Keep the common operator path focused on the garage geometry and any water-related drainage follow-up that the draft needs.
             </p>
           </div>
           <div className="field-grid">
-            <SelectField
-              label="House footing basis"
-              value={formState.reportBody.recommendation.footingBasis}
-              onChange={(value) => updateRecommendation('footingBasis', value as FormState['reportBody']['recommendation']['footingBasis'])}
-              options={[
-                ['standard', 'Standard footing recommendation'],
-                ['modified', 'Modified footing recommendation']
-              ]}
-            />
-            <SelectField
-              label="Recommended bearing option"
-              value={formState.reportBody.recommendation.spreadFootingFamily}
-              onChange={(value) =>
-                updateRecommendation('spreadFootingFamily', value as FormState['reportBody']['recommendation']['spreadFootingFamily'])
-              }
-              options={[
-                ['default_140_kpa', '140 kPa working value'],
-                ['default_120_kpa', '120 kPa / 2500 psf value'],
-                ['review_100_kpa', '100 kPa review option'],
-                ['omit', 'Do not include in this draft']
-              ]}
-            />
             {dependencyVisibility.reportBody.recommendation.showDrainageUpgradeVariant ? (
               <SelectField
                 label="Drainage upgrade"
@@ -819,6 +996,8 @@ export function InspectionForm() {
                 onChange={(value) =>
                   updateRecommendation('drainageUpgradeVariant', value as FormState['reportBody']['recommendation']['drainageUpgradeVariant'])
                 }
+                fieldPath="reportBody.recommendation.drainageUpgradeVariant"
+                errors={getFieldIssues('reportBody.recommendation.drainageUpgradeVariant')}
                 options={[
                   ['none', 'None'],
                   ['washed_rock_interior_exterior_two_laterals', 'Washed rock base with interior and exterior drainage']
@@ -834,7 +1013,7 @@ export function InspectionForm() {
             ) : null}
             {dependencyVisibility.reportBody.garage.showGarageMode ? (
               <SelectField
-                label="Garage condition"
+                label="Garage relationship to house"
                 value={formState.reportBody.garage.mode}
                 onChange={(value) => updateGarage('mode', value as FormState['reportBody']['garage']['mode'])}
                 options={[
@@ -854,6 +1033,8 @@ export function InspectionForm() {
                 type="number"
                 value={formState.reportBody.garage.offsetAboveHouseM?.toString() ?? ''}
                 onChange={(value) => updateGarage('offsetAboveHouseM', value ? Number(value) : undefined)}
+                fieldPath="reportBody.garage.offsetAboveHouseM"
+                errors={getFieldIssues('reportBody.garage.offsetAboveHouseM')}
               />
             ) : null}
             {dependencyVisibility.reportBody.garage.showSlabOrganics ? (
@@ -930,6 +1111,8 @@ export function InspectionForm() {
               label="Signing engineer"
               value={signingEngineerSelectValue}
               onChange={handleSigningEngineerSelect}
+              fieldPath={signingEngineerSelectValue === SIGNOFF_CUSTOM_OPTION ? undefined : 'signoff.signingEngineer'}
+              errors={signingEngineerSelectValue === SIGNOFF_CUSTOM_OPTION ? [] : getFieldIssues('signoff.signingEngineer')}
               options={[
                 ...signoffOptions,
                 [SIGNOFF_CUSTOM_OPTION, 'Custom manual entry']
@@ -940,10 +1123,90 @@ export function InspectionForm() {
                 label="Signing engineer (custom)"
                 value={formState.signoff.signingEngineer}
                 onChange={(value) => updateSignoff('signingEngineer', value)}
+                fieldPath="signoff.signingEngineer"
+                errors={getFieldIssues('signoff.signingEngineer')}
               />
             ) : null}
           </div>
         </section>
+
+        <details className="section-card analyst-controls">
+          <summary>
+            <div>
+              <p className="muted">Secondary controls</p>
+              <h2>Analyst controls</h2>
+            </div>
+            <p className="section-intro">
+              Use these only when the draft needs an office-specific shell or recommendation override that falls outside the normal operator path.
+            </p>
+          </summary>
+          <div className="note">
+            <strong>When to use this panel</strong>
+            <p>Leave these settings alone for routine drafting. Open this panel when an analyst needs to adjust letter shell wording or a recommendation family for a specific office case.</p>
+          </div>
+          <div className="issue-summary-grid">
+            {ANALYST_CONTROL_GROUPS.map((group) => (
+              <div key={group.id} className="issue-summary-card">
+                <h3>{group.title}</h3>
+                <p>{group.description}</p>
+              </div>
+            ))}
+          </div>
+          <div className="field-grid">
+            <SelectField
+              label="Subject line style"
+              value={formState.topBlock.subjectLineFamily}
+              onChange={(value) => updateTopBlock('subjectLineFamily', value as FormState['topBlock']['subjectLineFamily'])}
+              fieldPath="topBlock.subjectLineFamily"
+              options={[
+                ['singular', 'Foundation Soil Inspection'],
+                ['plural', 'Foundation Soils Inspection']
+              ]}
+            />
+            <Field
+              label="Heading detail (optional)"
+              value={formState.topBlock.headingSuffix ?? ''}
+              onChange={(value) => updateTopBlock('headingSuffix', value)}
+              fieldPath="topBlock.headingSuffix"
+            />
+            <SelectField
+              label="Client reference label"
+              value={formState.topBlock.clientReferenceLabelFamily}
+              onChange={(value) =>
+                updateTopBlock('clientReferenceLabelFamily', value as FormState['topBlock']['clientReferenceLabelFamily'])
+              }
+              fieldPath="topBlock.clientReferenceLabelFamily"
+              options={[
+                ['client_job_no', 'Client Job No.'],
+                ['job_hash', 'Job#']
+              ]}
+            />
+            <SelectField
+              label="House footing basis"
+              value={formState.reportBody.recommendation.footingBasis}
+              onChange={(value) => updateRecommendation('footingBasis', value as FormState['reportBody']['recommendation']['footingBasis'])}
+              fieldPath="reportBody.recommendation.footingBasis"
+              options={[
+                ['standard', 'Standard footing recommendation'],
+                ['modified', 'Modified footing recommendation']
+              ]}
+            />
+            <SelectField
+              label="Recommended bearing option"
+              value={formState.reportBody.recommendation.spreadFootingFamily}
+              onChange={(value) =>
+                updateRecommendation('spreadFootingFamily', value as FormState['reportBody']['recommendation']['spreadFootingFamily'])
+              }
+              fieldPath="reportBody.recommendation.spreadFootingFamily"
+              options={[
+                ['default_140_kpa', '140 kPa working value'],
+                ['default_120_kpa', '120 kPa / 2500 psf value'],
+                ['review_100_kpa', '100 kPa review option'],
+                ['omit', 'Do not include in this draft']
+              ]}
+            />
+          </div>
+        </details>
       </div>
 
       <aside className="workflow-rail">
@@ -959,12 +1222,16 @@ export function InspectionForm() {
           </div>
           <div className="summary-grid summary-grid--single">
             <div className="summary-item">
-              <span>Working draft</span>
-              <strong>{currentDraftLabel}</strong>
+              <span>Draft source</span>
+              <strong>{draftSource.label}</strong>
             </div>
             <div className="summary-item">
-              <span>Preview destination</span>
-              <strong>Letter preview</strong>
+              <span>Readiness</span>
+              <strong>{workflowState.readiness.status === 'ready' ? 'Ready' : workflowState.readiness.status === 'blocked' ? 'Blocked' : 'Review required'}</strong>
+            </div>
+            <div className="summary-item">
+              <span>Next action</span>
+              <strong>{firstBlockingIssue?.fieldPath ? 'Fix blocking fields' : 'Open preview'}</strong>
             </div>
           </div>
           <button type="button" onClick={openPreview} disabled={!hasHydrated}>
@@ -993,13 +1260,38 @@ export function InspectionForm() {
               >
                 {matchedPreset?.id === 'generic-happy-path' ? 'Generic sample active' : 'Load generic sample'}
               </button>
+              <button
+                className={draftSource.kind === 'blank_working_draft' ? 'secondary is-selected' : 'secondary'}
+                type="button"
+                onClick={startFreshDraft}
+                disabled={draftSource.kind === 'blank_working_draft'}
+                aria-pressed={draftSource.kind === 'blank_working_draft'}
+              >
+                {draftSource.kind === 'blank_working_draft' ? 'Blank working draft active' : 'Start fresh blank draft'}
+              </button>
             </div>
           </div>
+
+          {firstBlockingIssue?.fieldPath ? (
+            <div className="note">
+              <strong>Blocked draft repair</strong>
+              <p>The current draft stays saved locally. Use the button below to jump to the first blocking field before reopening preview or export.</p>
+              <button className="secondary" type="button" onClick={() => jumpToField(firstBlockingIssue.fieldPath!)}>
+                Jump to first blocker
+              </button>
+            </div>
+          ) : null}
 
           <details className="internal-details">
             <summary>Internal details</summary>
             <div className="field-grid">
-              <Field label="Hidden H number" value={formState.archive.hNumber} onChange={(value) => updateArchive('hNumber', value)} />
+              <Field
+                label="Hidden H number"
+                value={formState.archive.hNumber}
+                onChange={(value) => updateArchive('hNumber', value)}
+                fieldPath="archive.hNumber"
+                errors={getFieldIssues('archive.hNumber')}
+              />
             </div>
             <div className="note">
               <strong>Current letter mode</strong>
@@ -1023,18 +1315,28 @@ export function InspectionForm() {
 function SoilLayerFieldSet({
   title,
   layer,
-  onChange
+  onChange,
+  fieldPath,
+  errors = []
 }: {
   title: string;
   layer: SoilLayerDescriptor;
   onChange: <K extends keyof SoilLayerDescriptor>(key: K, value: SoilLayerDescriptor[K]) => void;
+  fieldPath?: string;
+  errors?: ValidationIssue[];
 }) {
   const descriptorVisibility = getSoilDescriptorVisibility(layer.materialFamily);
+  const anchorId = fieldPath ? getFieldPathAnchorId(fieldPath) : undefined;
 
   return (
     <>
-      <div className="field full">
+      <div className={`field full ${errors.length ? 'field--error' : ''}`} id={anchorId}>
         <h3>{title}</h3>
+        {errors.map((issue) => (
+          <p key={issue.id} className="field-error">
+            {issue.message}
+          </p>
+        ))}
       </div>
       <SelectField
         label={`${title} material family`}
@@ -1164,52 +1466,98 @@ function SoilLayerFieldSet({
   );
 }
 
+function getFieldId(label: string, fieldPath?: string) {
+  return fieldPath ? getFieldPathAnchorId(fieldPath) : label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+function FieldMessages({ id, errors }: { id: string; errors: ValidationIssue[] }) {
+  if (errors.length === 0) {
+    return null;
+  }
+
+  return (
+    <div id={`${id}-error`} className="field-error-list">
+      {errors.map((issue) => (
+        <p key={issue.id} className="field-error">
+          {issue.message}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 function Field({
   className,
+  errors = [],
+  fieldPath,
   label,
   onChange,
   type = 'text',
   value
 }: {
   className?: string;
+  errors?: ValidationIssue[];
+  fieldPath?: string;
   label: string;
   onChange: (value: string) => void;
   type?: string;
   value: string;
 }) {
-  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const id = getFieldId(label, fieldPath);
 
   return (
-    <div className={`field ${className ?? ''}`}>
+    <div className={`field ${className ?? ''} ${errors.length ? 'field--error' : ''}`}>
       <label htmlFor={id}>{label}</label>
-      <input id={id} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      <input
+        id={id}
+        type={type}
+        value={value}
+        aria-invalid={errors.length > 0}
+        aria-describedby={errors.length > 0 ? `${id}-error` : undefined}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <FieldMessages id={id} errors={errors} />
     </div>
   );
 }
 
 function TextAreaField({
   className,
+  errors = [],
+  fieldPath,
   label,
   onChange,
   value
 }: {
   className?: string;
+  errors?: ValidationIssue[];
+  fieldPath?: string;
   label: string;
   onChange: (value: string) => void;
   value: string;
 }) {
-  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const id = getFieldId(label, fieldPath);
 
   return (
-    <div className={`field ${className ?? ''}`}>
+    <div className={`field ${className ?? ''} ${errors.length ? 'field--error' : ''}`}>
       <label htmlFor={id}>{label}</label>
-      <textarea id={id} value={value} onChange={(event) => onChange(event.target.value)} />
+      <textarea
+        id={id}
+        value={value}
+        aria-invalid={errors.length > 0}
+        aria-describedby={errors.length > 0 ? `${id}-error` : undefined}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <FieldMessages id={id} errors={errors} />
     </div>
   );
 }
 
 function SelectField({
   blankOptionLabel,
+  className,
+  errors = [],
+  fieldPath,
   includeBlankOption,
   label,
   onChange,
@@ -1217,18 +1565,27 @@ function SelectField({
   value
 }: {
   blankOptionLabel?: string;
+  className?: string;
+  errors?: ValidationIssue[];
+  fieldPath?: string;
   includeBlankOption?: boolean;
   label: string;
   onChange: (value: string) => void;
   options: Array<[string, string]>;
   value: string;
 }) {
-  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const id = getFieldId(label, fieldPath);
 
   return (
-    <div className="field">
+    <div className={`field ${className ?? ''} ${errors.length ? 'field--error' : ''}`}>
       <label htmlFor={id}>{label}</label>
-      <select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+      <select
+        id={id}
+        value={value}
+        aria-invalid={errors.length > 0}
+        aria-describedby={errors.length > 0 ? `${id}-error` : undefined}
+        onChange={(event) => onChange(event.target.value)}
+      >
         {includeBlankOption ? <option value="">{blankOptionLabel ?? 'None'}</option> : null}
         {options.map(([optionValue, labelText]) => (
           <option key={optionValue} value={optionValue}>
@@ -1236,6 +1593,7 @@ function SelectField({
           </option>
         ))}
       </select>
+      <FieldMessages id={id} errors={errors} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { buildSignoffModel } from '@/lib/signoff/build-signoff-model';
 import { formatDisplayDate, getFoundationInspectionSubjectLine } from '@/lib/domain/report-helpers';
+import { buildDraftReadinessState } from '@/lib/form/build-draft-workflow';
 import { validateDraftForClientOutput } from '@/lib/form/validate-draft';
 import { getClientReferenceLabelText, officeShellText } from '@/lib/seed/letter-surfaces';
 import { getReportSectionDefinition, toClauseRefs, toRuleRefs } from '@/lib/seed/source-data';
@@ -217,25 +218,78 @@ function buildSignoffBlock(formState: FormState, paragraph: GeneratedParagraph):
   };
 }
 
-function collectReadinessLabel(validationIssueCount: number, reviewFlagCount: number): ComposedLetterDocument['readiness'] {
-  if (validationIssueCount > 0) {
-    return {
-      status: 'blocked',
-      label: `Export blocked (${validationIssueCount})`
-    };
-  }
+const FIRST_PAGE_BODY_BUDGET = 124;
+const CONTINUATION_PAGE_BUDGET = 118;
 
-  if (reviewFlagCount > 0) {
-    return {
-      status: 'review_required',
-      label: `Review flags present (${reviewFlagCount})`
-    };
+function estimateBodyBlockUnits(block: LetterDocumentBodyBlock) {
+  switch (block.kind) {
+    case 'metadata_block': {
+      if (block.role === 'office_address') {
+        return 14;
+      }
+
+      if (block.role === 'date_file') {
+        return 12;
+      }
+
+      if (block.role === 'client_address') {
+        return 10 + block.lines.length * 3;
+      }
+
+      return 12 + (block.detailLines?.length ?? 0) * 3;
+    }
+    case 'paragraph_block': {
+      const baseUnits = block.role === 'closing' ? 12 : 14;
+      const lengthUnits = Math.ceil(block.text.length / 220) * 6;
+
+      return baseUnits + lengthUnits + (block.reviewSensitive ? 2 : 0);
+    }
+    case 'signoff_block':
+      return 26 + block.lines.length * 10 + (block.engineerMemberNumberLine ? 4 : 0);
+    case 'spacer_block':
+      return block.size === 'large' ? 12 : block.size === 'medium' ? 8 : 4;
+    case 'trace_block':
+      return 0;
+  }
+}
+
+function takeBlocksWithinBudget(blocks: LetterDocumentBodyBlock[], budget: number) {
+  const acceptedBlocks: LetterDocumentBodyBlock[] = [];
+  let consumedUnits = 0;
+
+  for (const block of blocks) {
+    const blockUnits = estimateBodyBlockUnits(block);
+
+    if (acceptedBlocks.length > 0 && consumedUnits + blockUnits > budget) {
+      break;
+    }
+
+    acceptedBlocks.push(block);
+    consumedUnits += blockUnits;
   }
 
   return {
-    status: 'ready',
-    label: 'Ready for export'
+    acceptedBlocks,
+    remainingBlocks: blocks.slice(acceptedBlocks.length),
+    consumedUnits
   };
+}
+
+function paginateContinuationBlocks(blocks: LetterDocumentBodyBlock[]) {
+  const pages: LetterDocumentBodyBlock[][] = [];
+  let remainingBlocks = [...blocks];
+
+  while (remainingBlocks.length > 0) {
+    const { acceptedBlocks, remainingBlocks: nextRemainingBlocks } = takeBlocksWithinBudget(
+      remainingBlocks,
+      CONTINUATION_PAGE_BUDGET
+    );
+
+    pages.push(acceptedBlocks);
+    remainingBlocks = nextRemainingBlocks;
+  }
+
+  return pages;
 }
 
 function getParagraphBySection(result: GenerationResult, sectionId: SectionId): GeneratedParagraph | undefined {
@@ -245,18 +299,18 @@ function getParagraphBySection(result: GenerationResult, sectionId: SectionId): 
 export function composeLetterDocument(formState: FormState, result: GenerationResult): ComposedLetterDocument {
   const validationIssues = validateDraftForClientOutput(formState, result);
   const exportWarnings: string[] = [];
-  const firstPageBodyBlocks: LetterDocumentBodyBlock[] = [];
-  const continuationParagraphBlocks: LetterDocumentBodyBlock[] = [];
-  const firstPageBodySections: SectionId[] = ['P1', 'P2', 'P3', 'P3A', 'P4'];
+  const firstPageMetadataBlocks: LetterDocumentBodyBlock[] = [];
+  const candidateBodyBlocks: LetterDocumentBodyBlock[] = [];
+  const continuationSeedBlocks: LetterDocumentBodyBlock[] = [];
   const topBlock = getParagraphBySection(result, 'TOP_BLOCK');
   const closing = getParagraphBySection(result, 'CLOSING');
   const signoffParagraph = getParagraphBySection(result, 'SIGNOFF');
 
   if (topBlock) {
-    firstPageBodyBlocks.push(buildOfficeAddressBlock(topBlock));
-    firstPageBodyBlocks.push(buildDateAndFileBlock(formState, topBlock));
-    firstPageBodyBlocks.push(buildClientAddressBlock(formState, topBlock));
-    firstPageBodyBlocks.push(buildReBlock(formState, topBlock));
+    firstPageMetadataBlocks.push(buildOfficeAddressBlock(topBlock));
+    firstPageMetadataBlocks.push(buildDateAndFileBlock(formState, topBlock));
+    firstPageMetadataBlocks.push(buildClientAddressBlock(formState, topBlock));
+    firstPageMetadataBlocks.push(buildReBlock(formState, topBlock));
   }
 
   for (const paragraph of result.paragraphs) {
@@ -264,15 +318,11 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
       continue;
     }
 
-    if (firstPageBodySections.includes(paragraph.sectionId)) {
-      firstPageBodyBlocks.push(buildParagraphBlock(paragraph));
-    } else {
-      continuationParagraphBlocks.push(buildParagraphBlock(paragraph));
-    }
+    candidateBodyBlocks.push(buildParagraphBlock(paragraph));
   }
 
   if (closing) {
-    continuationParagraphBlocks.push(buildParagraphBlock(closing));
+    continuationSeedBlocks.push(buildParagraphBlock(closing));
   }
 
   let signoffBlock: ReturnType<typeof buildSignoffBlock> | undefined;
@@ -282,6 +332,13 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
   }
 
   const uniqueWarnings = [...new Set(exportWarnings)];
+  const firstPageBudgetUsed = firstPageMetadataBlocks.reduce((total, block) => total + estimateBodyBlockUnits(block), 0);
+  const { acceptedBlocks: firstPageParagraphBlocks, remainingBlocks: remainingBodyBlocks } = takeBlocksWithinBudget(
+    candidateBodyBlocks,
+    Math.max(FIRST_PAGE_BODY_BUDGET - firstPageBudgetUsed, 0)
+  );
+  const firstPageBodyBlocks = [...firstPageMetadataBlocks, ...firstPageParagraphBlocks];
+  const continuationParagraphBlocks = [...remainingBodyBlocks, ...continuationSeedBlocks];
   const pages: ComposedLetterDocument['pages'] = [
     {
       id: 'page-1',
@@ -292,30 +349,35 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
     }
   ];
 
-  const continuationChunks: LetterDocumentBodyBlock[][] = [];
-  const chunkSize = 4;
-
-  for (let index = 0; index < continuationParagraphBlocks.length; index += chunkSize) {
-    continuationChunks.push(continuationParagraphBlocks.slice(index, index + chunkSize));
-  }
+  const continuationChunks = paginateContinuationBlocks(continuationParagraphBlocks);
 
   if (continuationChunks.length === 0 && signoffBlock) {
     continuationChunks.push([]);
   }
 
+  if (signoffBlock) {
+    const lastChunk = continuationChunks.at(-1);
+
+    if (!lastChunk) {
+      continuationChunks.push([signoffBlock.block]);
+    } else if (
+      lastChunk.reduce((total, block) => total + estimateBodyBlockUnits(block), 0) + estimateBodyBlockUnits(signoffBlock.block) <=
+      CONTINUATION_PAGE_BUDGET
+    ) {
+      lastChunk.push(signoffBlock.block);
+    } else {
+      continuationChunks.push([signoffBlock.block]);
+    }
+  }
+
   continuationChunks.forEach((chunk, index) => {
     const isLastContinuationPage = index === continuationChunks.length - 1;
-    const bodyBlocks = [...chunk];
-
-    if (isLastContinuationPage && signoffBlock) {
-      bodyBlocks.push(signoffBlock.block);
-    }
 
     pages.push({
       id: `page-${index + 2}`,
       kind: 'continuation_page',
       headerBlock: buildContinuationHeader(formState),
-      bodyBlocks,
+      bodyBlocks: [...chunk],
       footerBlock: buildContinuationFooter(isLastContinuationPage ? result.archivePath : undefined)
     });
   });
@@ -330,6 +392,6 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
     ruleRefsUsed: result.ruleRefsUsed,
     exportWarnings: uniqueWarnings,
     validationIssues,
-    readiness: collectReadinessLabel(validationIssues.length, result.reviewFlags.length)
+    readiness: buildDraftReadinessState(validationIssues.length, result.reviewFlags.length)
   };
 }

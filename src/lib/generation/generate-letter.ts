@@ -18,7 +18,8 @@ import {
   excavationIssueText,
   getClientReferenceLabelText,
   officeShellText,
-  signoffText
+  signoffText,
+  walkoutGarageOrderingPolicy
 } from '@/lib/seed/letter-surfaces';
 import {
   getClauseText,
@@ -287,15 +288,33 @@ function appendWalkoutSentence(
   if (formState.reportBody.structureVariant === 'standard_house' && formState.reportBody.garage.mode !== 'none') {
     reviewFlags.push(
       createReviewFlag({
-        id: 'review-walkout-garage-ordering',
-        title: 'Walkout and garage combined ordering remains review-sensitive',
-        message:
-          'The current rules keep the garage excavation wording after the walkout wording, but the combined historical-family structure still needs office confirmation.',
+        id: walkoutGarageOrderingPolicy.reviewFlag.id,
+        title: walkoutGarageOrderingPolicy.reviewFlag.title,
+        message: walkoutGarageOrderingPolicy.reviewFlag.message,
         relatedSectionId: 'P2',
         clauseRefs: toClauseRefs(['CL_018', 'CL_021', 'CL_022']),
         ruleRefs: toRuleRefs(['DT_022', 'DT_023', 'DT_024', 'DT_122'])
       })
     );
+  }
+}
+
+function appendWalkoutAndGarageSentenceFamily(
+  formState: FormState,
+  sentences: string[],
+  clauseIds: string[],
+  ruleIds: string[],
+  reviewFlags: ReviewFlag[]
+) {
+  const orderedFamilies = walkoutGarageOrderingPolicy.sequence;
+
+  for (const family of orderedFamilies) {
+    if (family === 'walkout') {
+      appendWalkoutSentence(formState, sentences, clauseIds, ruleIds, reviewFlags);
+      continue;
+    }
+
+    appendGarageExcavationSentence(formState, sentences, clauseIds, ruleIds);
   }
 }
 
@@ -486,12 +505,16 @@ function buildP2Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
     ruleIds.push('DT_021');
   }
 
-  if (liveExcavationContext) {
-    appendGarageExcavationSentence(formState, sentences, clauseIds, ruleIds);
-  }
+  if (liveExcavationContext && excavation.walkoutBasement && formState.reportBody.garage.mode !== 'none') {
+    appendWalkoutAndGarageSentenceFamily(formState, sentences, clauseIds, ruleIds, reviewFlags);
+  } else {
+    if (liveExcavationContext) {
+      appendGarageExcavationSentence(formState, sentences, clauseIds, ruleIds);
+    }
 
-  if (excavation.walkoutBasement) {
-    appendWalkoutSentence(formState, sentences, clauseIds, ruleIds, reviewFlags);
+    if (excavation.walkoutBasement) {
+      appendWalkoutSentence(formState, sentences, clauseIds, ruleIds, reviewFlags);
+    }
   }
 
   appendExcavationConditionAddOns(formState, sentences, clauseIds, ruleIds, reviewFlags);

@@ -58,9 +58,19 @@ npm run dev
 ## Workflow
 
 - `/` shows the seed-backed repo summary and routes into the workflow.
-- `/form` captures the current structured inputs and can load the Victory Homes reference preset or the generic smoke-check preset.
-- `/preview` shows the formatted draft first, a secondary analyst/debug panel, and the live DOCX download action.
+- `/form` now surfaces shared readiness state directly in the working draft view, including blocking validation issues, analyst review notes, and jump-to-field repair links before the operator ever reaches preview.
+- `/form` keeps the primary operator path focused on project/property, excavation, soil, garage/remediation triggers, seasonal notes, and signoff, while shell/recommendation overrides live in a secondary `Analyst controls` panel.
+- `/form` can load the Victory Homes reference preset, the generic smoke-check preset, or start a fresh blank working draft without breaking local autosave.
+- `/preview` shows the formatted draft first, keeps client-facing content clean, and provides a clearer repair loop back to the form when export is blocked.
 - `/api/export` returns a first-pass DOCX generated from the composed document model.
+
+## Operator notes
+
+- Use a sample preset when you want a demo or a grounded reference starting point.
+- Use `Start fresh blank draft` when you want a clean working draft without sample values.
+- Export is blocked whenever active required fields are missing or client-facing placeholder/review markers would leak into the letter.
+- Review flags do not block preview, but they do keep unresolved wording visible for analyst attention.
+- Garage wording remains derived from the active recommendation path and should not be treated as a free-text operator override.
 
 ## Dependency model
 

@@ -43,9 +43,17 @@ describe('buildDocx', () => {
       const header2Xml = execFileSync('unzip', ['-p', docxPath, 'word/header2.xml'], {
         encoding: 'utf8'
       });
-      const footer2Xml = execFileSync('unzip', ['-p', docxPath, 'word/footer2.xml'], {
-        encoding: 'utf8'
-      });
+      const footerXml = ['word/footer1.xml', 'word/footer2.xml', 'word/footer3.xml']
+        .map((path) => {
+          try {
+            return execFileSync('unzip', ['-p', docxPath, path], {
+              encoding: 'utf8'
+            });
+          } catch {
+            return '';
+          }
+        })
+        .join('\n');
 
       expect(documentXml).toContain('J.R. Paine &amp; Associates Ltd.');
       expect(documentXml).toContain('Foundation Soil Inspection');
@@ -56,7 +64,7 @@ describe('buildDocx', () => {
       expect(documentXml).not.toContain('[Permit-to-practice');
       expect(header2Xml).toContain('Foundation Soil Inspection');
       expect(header2Xml).toContain('File No. 5478 - 1');
-      expect(footer2Xml).toContain('H:\\DATA 2026\\00 Housing 2026\\5478 - 1 VICTORY HOMES LTD.\\h38566vic.docx');
+      expect(footerXml).toContain('H:\\DATA 2026\\00 Housing 2026\\5478 - 1 VICTORY HOMES LTD.\\h38566vic.docx');
       expect(documentXml).not.toContain('LETTER - CONTINUED');
       expect(documentXml).not.toMatch(/\bCL_\d+\b/);
       expect(documentXml).not.toMatch(/\bDT_\d+\b/);

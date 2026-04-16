@@ -127,6 +127,18 @@ export const signoffText = {
   }
 } as const;
 
+export const walkoutGarageOrderingPolicy = {
+  id: 'walkout_then_garage_review_sensitive',
+  sequence: ['walkout', 'garage'] as const,
+  reviewSensitive: true,
+  reviewFlag: {
+    id: 'review-walkout-garage-ordering',
+    title: 'Walkout and garage combined ordering remains review-sensitive',
+    message:
+      'The office default is currently to place the rear-walkout wording before the garage footing wording, but the combined historical-family structure still needs office confirmation.'
+  }
+} as const;
+
 const subjectLineTextByFamily: Record<SubjectLineFamily, string> = {
   singular: 'Foundation Soil Inspection',
   plural: 'Foundation Soils Inspection'

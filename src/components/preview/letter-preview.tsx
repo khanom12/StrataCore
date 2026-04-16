@@ -5,9 +5,11 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { composeLetterDocument } from '@/lib/document/compose-letter-document';
 import { defaultFormState } from '@/lib/draft/default-form-state';
+import { describeDraftSource } from '@/lib/draft/draft-source';
+import { loadDraftSessionState, type DraftSessionState } from '@/lib/draft/draft-session';
 import { loadDraftState } from '@/lib/draft/storage';
+import { getFieldPathHash } from '@/lib/form/field-paths';
 import { generateLetter } from '@/lib/generation/generate-letter';
-import { identifyReferenceCasePreset } from '@/lib/reference-cases';
 import type { FormState } from '@/types/domain';
 import type {
   ComposedLetterPage,
@@ -201,28 +203,19 @@ function renderPage(page: ComposedLetterPage) {
   return page.kind === 'first_page' ? <FirstPageLayout key={page.id} page={page} /> : <ContinuationPageLayout key={page.id} page={page} />;
 }
 
-const CLIENT_PRESET_LABELS: Record<string, string> = {
-  'victory-homes-2026': 'Victory Homes sample project',
-  'generic-happy-path': 'Generic sample project'
-};
-
-function getDraftSourceLabel(formState: FormState) {
-  const matchedPreset = identifyReferenceCasePreset(formState);
-
-  if (!matchedPreset) {
-    return 'Custom local draft';
-  }
-
-  return CLIENT_PRESET_LABELS[matchedPreset.id] ?? matchedPreset.label;
-}
-
 export function LetterPreview() {
   const [draftState, setDraftState] = useState<FormState>(defaultFormState);
-  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [draftSession, setDraftSession] = useState<DraftSessionState>({});
+  const [exportFeedback, setExportFeedback] = useState<{
+    status: 'success' | 'error';
+    title: string;
+    detail?: string;
+    archivePath?: string;
+  } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const result = useMemo(() => generateLetter(draftState), [draftState]);
   const documentModel = useMemo(() => composeLetterDocument(draftState, result), [draftState, result]);
-  const draftSourceLabel = useMemo(() => getDraftSourceLabel(draftState), [draftState]);
+  const draftSource = useMemo(() => describeDraftSource(draftState, draftSession), [draftSession, draftState]);
   const readinessSummary =
     documentModel.readiness.status === 'ready'
       ? 'Ready for DOCX export'
@@ -237,14 +230,17 @@ export function LetterPreview() {
     documentModel.validationIssues.length === 0
       ? 'No blocking draft issues are currently present.'
       : `${documentModel.validationIssues.length} blocking issue${documentModel.validationIssues.length === 1 ? ' is' : 's are'} preventing export.`;
+  const firstBlockingIssue = documentModel.validationIssues[0];
+  const repairHref = firstBlockingIssue?.fieldPath ? `/form${getFieldPathHash(firstBlockingIssue.fieldPath)}` : '/form#workflow-status';
 
   useEffect(() => {
     setDraftState(loadDraftState());
+    setDraftSession(loadDraftSessionState());
   }, []);
 
   async function requestExport() {
     setIsExporting(true);
-    setExportMessage(null);
+    setExportFeedback(null);
 
     try {
       const response = await fetch('/api/export', {
@@ -258,14 +254,23 @@ export function LetterPreview() {
       if (!response.ok) {
         try {
           const payload = (await response.json()) as { message?: string };
-          setExportMessage(payload.message ?? 'Export failed. Please review the current draft warnings and try again.');
+          setExportFeedback({
+            status: 'error',
+            title: payload.message ?? 'Export failed. Please review the current draft warnings and try again.',
+            detail: 'Return to the form to resolve the active blocking issues. Your draft remains saved locally.'
+          });
         } catch {
-          setExportMessage('Export failed. Please review the current draft warnings and try again.');
+          setExportFeedback({
+            status: 'error',
+            title: 'Export failed. Please review the current draft warnings and try again.',
+            detail: 'Return to the form to resolve the active blocking issues. Your draft remains saved locally.'
+          });
         }
         return;
       }
 
       const filename = parseFilenameFromDisposition(response.headers.get('Content-Disposition'), documentModel.filename);
+      const archivePath = response.headers.get('X-StrataCore-Archive-Path') ?? documentModel.archivePath;
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -275,7 +280,12 @@ export function LetterPreview() {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      setExportMessage(`Downloaded ${filename}`);
+      setExportFeedback({
+        status: 'success',
+        title: 'DOCX export completed',
+        detail: filename,
+        archivePath
+      });
     } finally {
       setIsExporting(false);
     }
@@ -292,7 +302,7 @@ export function LetterPreview() {
         <div className="summary-grid">
           <div className="summary-item">
             <span>Draft source</span>
-            <strong>{draftSourceLabel}</strong>
+            <strong>{draftSource.label}</strong>
           </div>
           <div className="summary-item">
             <span>Export readiness</span>
@@ -308,16 +318,18 @@ export function LetterPreview() {
           </div>
         </div>
         <div className="button-row">
-          <Link className="button secondary" href="/form">
-            Back to form
-          </Link>
+          <a className="button secondary" href={repairHref}>
+            {documentModel.readiness.status === 'blocked' ? 'Back to form to fix issues' : 'Back to form'}
+          </a>
           <button type="button" onClick={requestExport} disabled={isExporting || documentModel.readiness.status === 'blocked'}>
             {isExporting ? 'Generating DOCX...' : 'Download DOCX'}
           </button>
         </div>
-        {exportMessage ? (
-          <div className="note">
-            <strong>{exportMessage}</strong>
+        {exportFeedback ? (
+          <div className={`status-banner status-banner--${exportFeedback.status === 'success' ? 'success' : 'blocked'}`}>
+            <strong>{exportFeedback.title}</strong>
+            {exportFeedback.detail ? <p>{exportFeedback.detail}</p> : null}
+            {exportFeedback.archivePath ? <p>Archive location: {exportFeedback.archivePath}</p> : null}
           </div>
         ) : null}
       </section>
@@ -337,7 +349,11 @@ export function LetterPreview() {
             <div key={issue.id} className="flag">
               <strong>{issue.title}</strong>
               <p>{issue.message}</p>
-              {issue.fieldPath ? <p className="mono">Field: {issue.fieldPath}</p> : null}
+              {issue.fieldPath ? (
+                <p className="mono">
+                  Field: {issue.fieldPath} | <a href={`/form${getFieldPathHash(issue.fieldPath)}`}>Jump back to form</a>
+                </p>
+              ) : null}
             </div>
           ))
         )}

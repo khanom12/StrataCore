@@ -141,7 +141,7 @@ describe('generateLetter', () => {
     expect(p5Text).toContain('as placed, was also considered adequate');
   });
 
-  it('uses the walkout rear-removal wording and keeps the combined garage family review-sensitive', () => {
+  it('uses the seed-backed walkout-then-garage family and keeps the combined case review-sensitive', () => {
     const formState = cloneFormState(genericHappyPath);
     formState.reportBody.excavation.walkoutBasement = true;
     formState.reportBody.excavation.walkoutExtraRearRemovalM = 1.2;
@@ -149,9 +149,13 @@ describe('generateLetter', () => {
 
     const result = generateLetter(formState);
     const p2Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P2')?.text ?? '';
+    const walkoutIndex = p2Text.indexOf('rear walkout basement');
+    const garageIndex = p2Text.indexOf('garage footing areas');
 
     expect(p2Text).toContain('An extra 1.2 m of material was removed');
     expect(p2Text).toContain('garage footing areas');
+    expect(walkoutIndex).toBeGreaterThanOrEqual(0);
+    expect(garageIndex).toBeGreaterThan(walkoutIndex);
     expect(result.reviewFlags.some((flag) => flag.id === 'review-walkout-garage-ordering')).toBe(true);
   });
 
