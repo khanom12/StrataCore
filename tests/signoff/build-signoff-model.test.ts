@@ -10,8 +10,8 @@ describe('buildSignoffModel', () => {
     });
 
     expect(signoff.lines).toEqual([
-      { label: 'Prepared by', value: 'Doug Parth, E.I.T.' },
-      { label: 'Reviewed by', value: 'Scott MacFarlane, P.Eng.' }
+      { label: 'Prepared by,', value: 'Doug Parth, E.I.T.' },
+      { label: 'Reviewed by,', value: 'Scott MacFarlane, P.Eng.' }
     ]);
     expect(signoff.signingEngineer.profile.memberNumber).toBe('89667');
   });
@@ -22,7 +22,7 @@ describe('buildSignoffModel', () => {
       signingEngineer: 'Scott MacFarlane, P.Eng.'
     });
 
-    expect(signoff.lines).toEqual([{ label: 'Prepared and signed by', value: 'Scott MacFarlane, P.Eng.' }]);
+    expect(signoff.lines).toEqual([{ label: 'Prepared and signed by,', value: 'Scott MacFarlane, P.Eng.' }]);
   });
 
   it('falls back cleanly when the signing engineer is not found in the local registry', () => {
@@ -32,7 +32,7 @@ describe('buildSignoffModel', () => {
     });
 
     expect(signoff.signingEngineer.matched).toBe(false);
-    expect(signoff.lines).toEqual([{ label: 'Signed by', value: 'Unknown Reviewer, P.Eng.' }]);
+    expect(signoff.lines).toEqual([{ label: 'Signed by,', value: 'Unknown Reviewer, P.Eng.' }]);
     expect(signoff.warnings.some((warning) => warning.includes('free-text fallback'))).toBe(true);
   });
 });

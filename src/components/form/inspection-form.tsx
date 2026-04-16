@@ -8,6 +8,8 @@ import { deriveHouseCutRange } from '@/lib/domain/report-helpers';
 import { buildFallbackSoilLayer, getPrimarySoilFieldsFromLayer } from '@/lib/domain/soil-layers';
 import { defaultFormState } from '@/lib/draft/default-form-state';
 import { loadDraftState, saveDraftState } from '@/lib/draft/storage';
+import { DEFERRED_MANUAL_BRANCHES, getActiveDocumentMode, getFormInputVisibility, getSoilDescriptorVisibility } from '@/lib/form/dependencies';
+import { normalizeDependentFormState } from '@/lib/form/normalize-dependent-state';
 import { getEngineerRegistry, formatSignoffName, resolveSignoffProfile } from '@/lib/signoff/engineer-registry';
 import { cloneFormState, getReferenceCasePreset, identifyReferenceCasePreset } from '@/lib/reference-cases';
 import type { FormState, SoilInputs, SoilLayerDescriptor } from '@/types/domain';
@@ -38,6 +40,8 @@ export function InspectionForm() {
   const [formState, setFormState] = useState<FormState>(defaultFormState);
   const cutRange = deriveHouseCutRange(formState.reportBody.excavation.houseFootingCutDepthsM);
   const matchedPreset = useMemo(() => identifyReferenceCasePreset(formState), [formState]);
+  const dependencyVisibility = useMemo(() => getFormInputVisibility(formState), [formState]);
+  const activeDocumentMode = useMemo(() => getActiveDocumentMode(), []);
   const signoffProfiles = useMemo(() => getEngineerRegistry(), []);
   const signoffOptions = useMemo(
     () => signoffProfiles.map((profile) => [formatSignoffName(profile), formatSignoffName(profile)] as [string, string]),
@@ -45,19 +49,16 @@ export function InspectionForm() {
   );
   const preparedBySelectValue = getRegistrySelectValue(formState.signoff.preparedBy, true);
   const signingEngineerSelectValue = getRegistrySelectValue(formState.signoff.signingEngineer, false);
-  const primarySoilFamily = formState.reportBody.soil.primaryMaterialFamily;
-  const isClayFamily = primarySoilFamily !== 'sand' && primarySoilFamily !== 'silt';
-  const isSandSiltFamily = primarySoilFamily === 'sand' || primarySoilFamily === 'silt';
-  const isLayeredSoil = formState.reportBody.soil.soilLayeringMode === 'engineered_fill_over_native';
+  const isLayeredSoil = dependencyVisibility.reportBody.soil.showLayeredInputs;
   const engineeredFillLayer = formState.reportBody.soil.engineeredFillLayer ?? buildFallbackSoilLayer(formState.reportBody.soil);
   const underlyingNativeLayer = formState.reportBody.soil.underlyingNativeLayer ?? buildFallbackSoilLayer(formState.reportBody.soil);
 
   useEffect(() => {
-    setFormState(loadDraftState());
+    setFormState(normalizeDependentFormState(loadDraftState()));
   }, []);
 
   function updateState(updater: (current: FormState) => FormState) {
-    setFormState((current) => updater(current));
+    setFormState((current) => normalizeDependentFormState(updater(current)));
   }
 
   function updateTopBlock<K extends keyof FormState['topBlock']>(key: K, value: FormState['topBlock'][K]) {
@@ -200,7 +201,7 @@ export function InspectionForm() {
       return;
     }
 
-    const nextState = cloneFormState(preset.formState);
+    const nextState = normalizeDependentFormState(cloneFormState(preset.formState));
     setFormState(nextState);
     saveDraftState(nextState);
   }
@@ -242,6 +243,12 @@ export function InspectionForm() {
           default draft as a fuzzy seed example. The preview still owns all letter assembly, while the form
           only edits the canonical grouped draft state.
         </p>
+        <p className="note">
+          <strong>Active document mode:</strong> {activeDocumentMode.description}{' '}
+          <br />
+          <strong>Deferred/manual branches:</strong>{' '}
+          {DEFERRED_MANUAL_BRANCHES.map((branch) => branch.description).join(' ')}
+        </p>
         <p>
           <strong>Current draft</strong>
         </p>
@@ -277,7 +284,6 @@ export function InspectionForm() {
           <Field label="Street address" value={formState.topBlock.streetAddress} onChange={(value) => updateTopBlock('streetAddress', value)} />
           <Field label="Heading suffix" value={formState.topBlock.headingSuffix ?? ''} onChange={(value) => updateTopBlock('headingSuffix', value)} />
           <Field label="Municipality" value={formState.topBlock.municipality} onChange={(value) => updateTopBlock('municipality', value)} />
-          <Field label="Subdivision" value={formState.topBlock.subdivision ?? ''} onChange={(value) => updateTopBlock('subdivision', value)} />
           <TextAreaField
             className="full"
             label="Client mailing address"
@@ -294,19 +300,28 @@ export function InspectionForm() {
             checked={formState.topBlock.includeSubdivision}
             onChange={(checked) => updateTopBlock('includeSubdivision', checked)}
           />
-          <Field label="Lot" value={formState.topBlock.lot ?? ''} onChange={(value) => updateTopBlock('lot', value)} />
-          <Field label="Block" value={formState.topBlock.block ?? ''} onChange={(value) => updateTopBlock('block', value)} />
-          <Field label="Plan" value={formState.topBlock.plan ?? ''} onChange={(value) => updateTopBlock('plan', value)} />
+          {dependencyVisibility.topBlock.showLegalDescriptionFields ? (
+            <>
+              <Field label="Lot" value={formState.topBlock.lot ?? ''} onChange={(value) => updateTopBlock('lot', value)} />
+              <Field label="Block" value={formState.topBlock.block ?? ''} onChange={(value) => updateTopBlock('block', value)} />
+              <Field label="Plan" value={formState.topBlock.plan ?? ''} onChange={(value) => updateTopBlock('plan', value)} />
+            </>
+          ) : null}
           <CheckboxField
             label="Include client job number"
             checked={formState.topBlock.includeClientJobNumber}
             onChange={(checked) => updateTopBlock('includeClientJobNumber', checked)}
           />
-          <Field
-            label="Client job number"
-            value={formState.topBlock.clientJobNumber ?? ''}
-            onChange={(value) => updateTopBlock('clientJobNumber', value)}
-          />
+          {dependencyVisibility.topBlock.showClientJobNumber ? (
+            <Field
+              label="Client job number"
+              value={formState.topBlock.clientJobNumber ?? ''}
+              onChange={(value) => updateTopBlock('clientJobNumber', value)}
+            />
+          ) : null}
+          {dependencyVisibility.topBlock.showSubdivision ? (
+            <Field label="Subdivision" value={formState.topBlock.subdivision ?? ''} onChange={(value) => updateTopBlock('subdivision', value)} />
+          ) : null}
         </div>
       </section>
 
@@ -391,7 +406,7 @@ export function InspectionForm() {
             checked={Boolean(formState.reportBody.excavation.oversizedTrench)}
             onChange={(checked) => updateExcavation('oversizedTrench', checked)}
           />
-          {formState.reportBody.excavation.oversizedTrench ? (
+          {dependencyVisibility.reportBody.excavation.showTrenchLocation ? (
             <SelectField
               label="Trench location"
               value={formState.reportBody.excavation.trenchLocation ?? 'front'}
@@ -434,6 +449,13 @@ export function InspectionForm() {
             checked={Boolean(formState.reportBody.excavation.freeWaterInAugerHoles)}
             onChange={(checked) => updateExcavation('freeWaterInAugerHoles', checked)}
           />
+          {dependencyVisibility.reportBody.excavation.showWaterContext ? (
+            <Field
+              label="Free-water context"
+              value={formState.reportBody.excavation.waterContext ?? ''}
+              onChange={(value) => updateExcavation('waterContext', value)}
+            />
+          ) : null}
           <CheckboxField
             label="Exposed electrical trench"
             checked={Boolean(formState.reportBody.excavation.exposedElectricalTrench)}
@@ -454,28 +476,7 @@ export function InspectionForm() {
           <SelectField
             label="Layering mode"
             value={formState.reportBody.soil.soilLayeringMode}
-            onChange={(value) =>
-              updateState((current) => {
-                const nextMode = value as SoilInputs['soilLayeringMode'];
-                const nextSoil = {
-                  ...current.reportBody.soil,
-                  soilLayeringMode: nextMode
-                };
-
-                if (nextMode === 'engineered_fill_over_native') {
-                  nextSoil.engineeredFillLayer = current.reportBody.soil.engineeredFillLayer ?? buildFallbackSoilLayer(current.reportBody.soil);
-                  nextSoil.underlyingNativeLayer = current.reportBody.soil.underlyingNativeLayer ?? buildFallbackSoilLayer(current.reportBody.soil);
-                }
-
-                return {
-                  ...current,
-                  reportBody: {
-                    ...current.reportBody,
-                    soil: nextSoil
-                  }
-                };
-              })
-            }
+            onChange={(value) => updateSoil('soilLayeringMode', value as SoilInputs['soilLayeringMode'])}
             options={[
               ['single_layer', 'Single layer'],
               ['engineered_fill_over_native', 'Engineered fill over native']
@@ -601,7 +602,7 @@ export function InspectionForm() {
                   ['very_dense', 'Very dense']
                 ]}
               />
-              {isClayFamily ? (
+              {dependencyVisibility.reportBody.soil.primary.showClayDescriptors ? (
                 <MultiSelectField
                   label="Clay descriptors"
                   value={formState.reportBody.soil.clayDescriptors ?? []}
@@ -614,7 +615,7 @@ export function InspectionForm() {
                   ]}
                 />
               ) : null}
-              {isSandSiltFamily ? (
+              {dependencyVisibility.reportBody.soil.primary.showSandSiltDescriptors ? (
                 <MultiSelectField
                   label="Sand / silt descriptors"
                   value={formState.reportBody.soil.sandSiltDescriptors ?? []}
@@ -685,7 +686,7 @@ export function InspectionForm() {
               ['higher_than_house', 'Garage above house excavation']
             ]}
           />
-          {formState.reportBody.garage.mode === 'higher_than_house' ? (
+          {dependencyVisibility.reportBody.garage.showOffsetAboveHouseM ? (
             <Field
               label="Garage offset above house (m)"
               type="number"
@@ -693,17 +694,19 @@ export function InspectionForm() {
               onChange={(value) => updateGarage('offsetAboveHouseM', value ? Number(value) : undefined)}
             />
           ) : null}
-          <CheckboxField
-            label="Garage slab organics advisory"
-            checked={Boolean(formState.reportBody.garage.slabOrganics)}
-            onChange={(checked) => updateGarage('slabOrganics', checked)}
-          />
+          {dependencyVisibility.reportBody.garage.showSlabOrganics ? (
+            <CheckboxField
+              label="Garage slab organics advisory"
+              checked={Boolean(formState.reportBody.garage.slabOrganics)}
+              onChange={(checked) => updateGarage('slabOrganics', checked)}
+            />
+          ) : null}
           <CheckboxField
             label="Include sulphate paragraph"
             checked={formState.reportBody.sulphate.includeParagraph}
             onChange={(checked) => updateSulphate('includeParagraph', checked)}
           />
-          {formState.reportBody.sulphate.includeParagraph ? (
+          {dependencyVisibility.reportBody.sulphate.showSulphateClass ? (
             <SelectField
               label="Sulphate class"
               value={formState.reportBody.sulphate.sulphateClass ?? 'negligible'}
@@ -776,8 +779,7 @@ function SoilLayerFieldSet({
   layer: SoilLayerDescriptor;
   onChange: <K extends keyof SoilLayerDescriptor>(key: K, value: SoilLayerDescriptor[K]) => void;
 }) {
-  const isClayLayer = layer.materialFamily !== 'sand' && layer.materialFamily !== 'silt';
-  const isSandSiltLayer = layer.materialFamily === 'sand' || layer.materialFamily === 'silt';
+  const descriptorVisibility = getSoilDescriptorVisibility(layer.materialFamily);
 
   return (
     <>
@@ -868,7 +870,7 @@ function SoilLayerFieldSet({
           ['very_dense', 'Very dense']
         ]}
       />
-      {isClayLayer ? (
+      {descriptorVisibility.showClayDescriptors ? (
         <MultiSelectField
           label={`${title} clay descriptors`}
           value={layer.clayDescriptors ?? []}
@@ -881,7 +883,7 @@ function SoilLayerFieldSet({
           ]}
         />
       ) : null}
-      {isSandSiltLayer ? (
+      {descriptorVisibility.showSandSiltDescriptors ? (
         <MultiSelectField
           label={`${title} sand / silt descriptors`}
           value={layer.sandSiltDescriptors ?? []}

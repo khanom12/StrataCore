@@ -124,9 +124,10 @@ describe('generateLetter', () => {
     const signoffText = result.paragraphs.find((paragraph) => paragraph.sectionId === 'SIGNOFF')?.text ?? '';
 
     expect(signoffText).toContain('Yours truly,');
-    expect(signoffText).toContain('Signed by: Scott MacFarlane, P.Eng.');
-    expect(signoffText).toContain('Member No.: 89667');
-    expect(signoffText).not.toContain('Reviewed by:');
+    expect(signoffText).toContain('Signed by,');
+    expect(signoffText).toContain('Scott MacFarlane, P.Eng.');
+    expect(signoffText).toContain('APEGA Member #: 89667');
+    expect(signoffText).not.toContain('Reviewed by,');
   });
 
   it('threads secondary moisture, plasticity, and descriptors into the single-layer P3 output', () => {

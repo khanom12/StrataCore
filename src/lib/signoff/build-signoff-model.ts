@@ -17,12 +17,12 @@ export function buildSignoffModel(signoff: SignoffInputs): SignoffModel {
   const signingEngineerName = formatSignoffName(signingEngineer.profile);
 
   if (preparedBy && normalizeName(formatSignoffName(preparedBy.profile)) !== normalizeName(signingEngineerName)) {
-    lines.push({ label: 'Prepared by', value: formatSignoffName(preparedBy.profile) });
-    lines.push({ label: 'Reviewed by', value: signingEngineerName });
+    lines.push({ label: 'Prepared by,', value: formatSignoffName(preparedBy.profile) });
+    lines.push({ label: 'Reviewed by,', value: signingEngineerName });
   } else if (preparedBy) {
-    lines.push({ label: 'Prepared and signed by', value: signingEngineerName });
+    lines.push({ label: 'Prepared and signed by,', value: signingEngineerName });
   } else {
-    lines.push({ label: 'Signed by', value: signingEngineerName });
+    lines.push({ label: 'Signed by,', value: signingEngineerName });
   }
 
   if (!signingEngineer.matched) {

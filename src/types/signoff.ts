@@ -22,7 +22,7 @@ export interface PermitToPracticeAsset {
 }
 
 export interface SignoffLine {
-  label: 'Prepared by' | 'Reviewed by' | 'Signed by' | 'Prepared and signed by';
+  label: 'Prepared by,' | 'Reviewed by,' | 'Signed by,' | 'Prepared and signed by,';
   value: string;
 }
 

@@ -1,4 +1,5 @@
 import { defaultFormState } from '@/lib/draft/default-form-state';
+import { normalizeDependentFormState } from '@/lib/form/normalize-dependent-state';
 import type { FormState, SoilLayerDescriptor } from '@/types/domain';
 
 const STORAGE_KEY = 'stratacore-letter-draft';
@@ -316,7 +317,7 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
       ) ?? legacyLayerFallback;
   }
 
-  return {
+  return normalizeDependentFormState({
     topBlock: {
       letterDate: readString(topBlock.letterDate) ?? defaultFormState.topBlock.letterDate,
       fileNumber: readString(topBlock.fileNumber) ?? defaultFormState.topBlock.fileNumber,
@@ -387,7 +388,7 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
       preparedBy: readString(signoff.preparedBy) ?? defaultFormState.signoff.preparedBy,
       signingEngineer: readString(signoff.signingEngineer) ?? defaultFormState.signoff.signingEngineer
     }
-  };
+  });
 }
 
 function isCanonicalFormState(value: unknown): value is FormState {
@@ -572,7 +573,7 @@ export function saveDraftState(formState: FormState) {
     return;
   }
 
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(formState));
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeDependentFormState(formState)));
 }
 
 export function loadDraftState(): FormState {

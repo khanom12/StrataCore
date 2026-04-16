@@ -5,13 +5,22 @@ import {
   Header,
   Packer,
   Paragraph,
+  SectionType,
   TabStopPosition,
   TabStopType,
-  SectionType,
-  TextRun
+  TextRun,
+  type IParagraphOptions
 } from 'docx';
 
-import type { ComposedLetterDocument, FooterBlock, HeaderBlock, LetterDocumentBodyBlock } from '@/types/document';
+import type {
+  ComposedLetterDocument,
+  FooterBlock,
+  HeaderBlock,
+  LetterDocumentBodyBlock,
+  MetadataBlock,
+  ParagraphBlock,
+  SignoffBlock
+} from '@/types/document';
 
 export interface DocxExportResult {
   buffer: Uint8Array;
@@ -21,69 +30,206 @@ export interface DocxExportResult {
   exportWarnings: string[];
 }
 
-function toAlignmentType(alignment?: HeaderBlock['alignment']) {
-  switch (alignment) {
-    case 'center':
-      return AlignmentType.CENTER;
-    case 'right':
-      return AlignmentType.RIGHT;
-    default:
-      return AlignmentType.LEFT;
-  }
+const DEFAULT_FONT = 'Franklin Gothic Book';
+const BODY_SIZE = 22;
+const HEADER_TITLE_SIZE = 24;
+const HEADER_SECONDARY_SIZE = 20;
+const FOOTER_SIZE = 18;
+const RIGHT_TAB_STOP = [{ position: TabStopPosition.MAX, type: TabStopType.RIGHT }];
+const FOOTER_COLUMN_TABS = [
+  { position: 1800, type: TabStopType.LEFT },
+  { position: 3600, type: TabStopType.CENTER },
+  { position: 5400, type: TabStopType.RIGHT }
+];
+
+function buildRun(text: string, options?: { bold?: boolean; size?: number }) {
+  return new TextRun({
+    text: text || ' ',
+    bold: options?.bold,
+    size: options?.size ?? BODY_SIZE,
+    font: DEFAULT_FONT
+  });
 }
 
-function buildLineParagraph(
-  line: string,
+function buildParagraph(options: IParagraphOptions) {
+  return new Paragraph(options);
+}
+
+function buildSimpleParagraph(
+  text: string,
   options?: {
-    bold?: boolean;
-    size?: number;
     alignment?: (typeof AlignmentType)[keyof typeof AlignmentType];
     before?: number;
     after?: number;
+    line?: number;
+    bold?: boolean;
+    size?: number;
     tabs?: Array<{
       position: number;
       type: (typeof TabStopType)[keyof typeof TabStopType];
     }>;
+    indent?: { left?: number; hanging?: number };
   }
 ) {
-  return new Paragraph({
+  return buildParagraph({
     alignment: options?.alignment,
-    spacing: { before: options?.before ?? 0, after: options?.after ?? 120 },
+    spacing: { before: options?.before ?? 0, after: options?.after ?? 120, line: options?.line },
     tabStops: options?.tabs,
-    children: [
-      new TextRun({
-        text: line || ' ',
-        bold: options?.bold,
-        size: options?.size ?? 22,
-        font: 'Franklin Gothic Book'
-      })
-    ]
+    indent: options?.indent,
+    children: [buildRun(text, { bold: options?.bold, size: options?.size })]
   });
 }
 
 function buildHeader(block: HeaderBlock) {
+  if (block.role === 'continuation_subject') {
+    return new Header({
+      children: [
+        buildParagraph({
+          spacing: { after: 80 },
+          tabStops: RIGHT_TAB_STOP,
+          children: [buildRun(`${block.subjectLine ?? ''}\t${block.fileNumberLine ?? ''}`, { size: BODY_SIZE })]
+        })
+      ]
+    });
+  }
+
   return new Header({
     children: block.lines.map((line, index) =>
-      buildLineParagraph(line, {
+      buildSimpleParagraph(line, {
         bold: index === 0,
-        size: index === 0 ? 24 : 20,
-        alignment: toAlignmentType(block.alignment),
-        after: index === block.lines.length - 1 ? 80 : 40
+        size: index === 0 ? HEADER_TITLE_SIZE : HEADER_SECONDARY_SIZE,
+        alignment: AlignmentType.CENTER,
+        after: index === block.lines.length - 1 ? 120 : 40
       })
     )
   });
 }
 
 function buildFooter(block: FooterBlock) {
-  return new Footer({
-    children: block.lines.map((line, index) =>
-      buildLineParagraph(line, {
-        alignment: toAlignmentType(block.alignment),
-        size: 18,
-        after: index === block.lines.length - 1 ? 0 : 40
+  const children: Paragraph[] = [];
+
+  if (block.offices?.length) {
+    children.push(
+      buildParagraph({
+        alignment: AlignmentType.CENTER,
+        tabStops: FOOTER_COLUMN_TABS,
+        spacing: { after: 20 },
+        children: [buildRun(block.offices.map((office) => office.city).join('\t'), { size: FOOTER_SIZE })]
       })
-    )
+    );
+    children.push(
+      buildParagraph({
+        alignment: AlignmentType.CENTER,
+        tabStops: FOOTER_COLUMN_TABS,
+        spacing: { after: 60 },
+        children: [buildRun(block.offices.map((office) => office.phone).join('\t'), { size: FOOTER_SIZE })]
+      })
+    );
+  }
+
+  if (block.archivePathLine) {
+    children.push(
+      buildSimpleParagraph(block.archivePathLine, {
+        alignment: AlignmentType.CENTER,
+        size: FOOTER_SIZE,
+        after: 0
+      })
+    );
+  }
+
+  return new Footer({ children });
+}
+
+function buildMetadataParagraphs(block: MetadataBlock): Paragraph[] {
+  switch (block.role) {
+    case 'office_address':
+      return block.lines.map((line, index) =>
+        buildSimpleParagraph(line, {
+          alignment: AlignmentType.RIGHT,
+          after: index === block.lines.length - 1 ? 60 : 20
+        })
+      );
+    case 'date_file':
+      return [
+        buildSimpleParagraph(block.dateLine ?? block.lines[0] ?? '', {
+          alignment: AlignmentType.RIGHT,
+          after: 40
+        }),
+        buildSimpleParagraph(block.fileNumberLine ?? block.lines[1] ?? '', {
+          alignment: AlignmentType.RIGHT,
+          after: 180
+        })
+      ];
+    case 'client_address':
+      return block.lines.map((line, index) =>
+        buildSimpleParagraph(line, {
+          bold: block.emphasisLineIndexes?.includes(index),
+          after: 30
+        })
+      );
+    case 're_block': {
+      const paragraphs = [
+        buildParagraph({
+          spacing: { after: 40 },
+          tabStops: [{ position: 720, type: TabStopType.LEFT }],
+          children: [buildRun(`Re:\t${block.subjectLine ?? ''}`)]
+        })
+      ];
+
+      for (const line of block.detailLines ?? []) {
+        paragraphs.push(
+          buildSimpleParagraph(line, {
+            after: 30,
+            indent: { left: 360 }
+          })
+        );
+      }
+
+      paragraphs.push(buildParagraph({ spacing: { after: 160 }, children: [buildRun(' ')] }));
+      return paragraphs;
+    }
+  }
+}
+
+function buildBodyParagraph(block: ParagraphBlock) {
+  return buildParagraph({
+    alignment: block.role === 'closing' ? AlignmentType.LEFT : AlignmentType.JUSTIFIED,
+    spacing: {
+      after: block.role === 'closing' ? 160 : 180,
+      line: 300
+    },
+    children: [buildRun(block.text)]
   });
+}
+
+function buildSignoffParagraphs(block: SignoffBlock): Paragraph[] {
+  const paragraphs: Paragraph[] = [
+    buildSimpleParagraph(block.salutationLine, {
+      after: 140
+    }),
+    buildSimpleParagraph(block.organization, {
+      after: 180
+    })
+  ];
+
+  for (const line of block.lines) {
+    paragraphs.push(
+      buildSimpleParagraph(line.label, {
+        after: 20
+      })
+    );
+    paragraphs.push(
+      buildSimpleParagraph(line.value, {
+        after: 120,
+        indent: { left: 240 }
+      })
+    );
+  }
+
+  paragraphs.push(buildSimpleParagraph(block.engineerMemberNumberLine, { after: 80 }));
+  paragraphs.push(buildSimpleParagraph(block.stampPlaceholderLine, { after: 80 }));
+  paragraphs.push(buildSimpleParagraph(block.permitToPracticeLine, { after: 0 }));
+  return paragraphs;
 }
 
 function buildBodyParagraphs(blocks: LetterDocumentBodyBlock[]): Paragraph[] {
@@ -92,52 +238,16 @@ function buildBodyParagraphs(blocks: LetterDocumentBodyBlock[]): Paragraph[] {
   for (const block of blocks) {
     switch (block.kind) {
       case 'metadata_block':
-        for (const line of block.lines) {
-          const renderedLine =
-            block.id === 'metadata-top-block'
-              ? line.replace(/^File No\.\:\s+/, 'File No.:\t').replace(/^Client Job No\.\:\s+/, 'Client Job No.:\t')
-              : line;
-          paragraphs.push(
-            buildLineParagraph(renderedLine, {
-              alignment: toAlignmentType(block.alignment),
-              after: line ? 80 : 120,
-              tabs:
-                block.id === 'metadata-top-block'
-                  ? [
-                      {
-                        position: TabStopPosition.MAX,
-                      type: TabStopType.RIGHT
-                    }
-                  ]
-                  : undefined
-            })
-          );
-        }
-        paragraphs.push(new Paragraph({ text: ' ' }));
+        paragraphs.push(...buildMetadataParagraphs(block));
         break;
       case 'paragraph_block':
-        paragraphs.push(
-          new Paragraph({
-            alignment: toAlignmentType(block.alignment),
-            spacing: { after: 220, line: 320 },
-            children: [new TextRun({ text: block.text, size: 22, font: 'Franklin Gothic Book' })]
-          })
-        );
+        paragraphs.push(buildBodyParagraph(block));
         break;
       case 'signoff_block':
-        paragraphs.push(buildLineParagraph(block.salutationLine, { after: 120 }));
-        paragraphs.push(new Paragraph({ text: ' ' }));
-        paragraphs.push(buildLineParagraph(block.organization, { after: 80 }));
-        paragraphs.push(new Paragraph({ text: ' ' }));
-        for (const line of block.lines) {
-          paragraphs.push(buildLineParagraph(`${line.label}: ${line.value}`, { after: 80 }));
-        }
-        paragraphs.push(buildLineParagraph(block.engineerMemberNumberLine, { after: 80 }));
-        paragraphs.push(buildLineParagraph(block.stampPlaceholderLine, { after: 80 }));
-        paragraphs.push(buildLineParagraph(block.permitToPracticeLine, { after: 0 }));
+        paragraphs.push(...buildSignoffParagraphs(block));
         break;
       case 'spacer_block':
-        paragraphs.push(new Paragraph({ text: ' ' }));
+        paragraphs.push(buildParagraph({ spacing: { after: block.size === 'large' ? 240 : block.size === 'medium' ? 160 : 80 }, children: [buildRun(' ')] }));
         break;
       case 'trace_block':
         break;
@@ -153,20 +263,30 @@ export async function buildDocx(documentModel: ComposedLetterDocument): Promise<
       default: {
         document: {
           run: {
-            font: 'Franklin Gothic Book',
-            size: 22
+            font: DEFAULT_FONT,
+            size: BODY_SIZE
           },
           paragraph: {
             spacing: {
               after: 120,
-              line: 320
+              line: 300
             }
           }
         }
       }
     },
     sections: documentModel.pages.map((page, index) => ({
-      properties: index === 0 ? {} : { type: SectionType.NEXT_PAGE },
+      properties: {
+        type: index === 0 ? undefined : SectionType.NEXT_PAGE,
+        page: {
+          margin: {
+            top: 720,
+            right: 900,
+            bottom: 720,
+            left: 900
+          }
+        }
+      },
       headers: {
         default: buildHeader(page.headerBlock)
       },

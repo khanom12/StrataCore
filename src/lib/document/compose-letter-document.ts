@@ -2,19 +2,25 @@ import { buildSignoffModel } from '@/lib/signoff/build-signoff-model';
 import { formatSignoffName } from '@/lib/signoff/engineer-registry';
 import { getReportSectionDefinition, toClauseRefs, toRuleRefs } from '@/lib/seed/source-data';
 import type { FormState, GeneratedParagraph, GenerationResult, SectionId } from '@/types/domain';
-import type { ComposedLetterDocument, FooterBlock, HeaderBlock, LetterDocumentBodyBlock, MetadataBlock, ParagraphBlock, SignoffBlock } from '@/types/document';
+import type {
+  ComposedLetterDocument,
+  FooterBlock,
+  HeaderBlock,
+  LetterDocumentBodyBlock,
+  MetadataBlock,
+  ParagraphBlock,
+  SignoffBlock
+} from '@/types/document';
 
-function splitLines(value: string): string[] {
-  return value
-    .split('\n')
-    .map((line) => line.trimEnd())
-    .filter((line, index, lines) => line.length > 0 || (index > 0 && lines[index - 1].length > 0));
+function getSubjectLine(formState: FormState) {
+  return `Foundation Soil Inspection${formState.topBlock.headingSuffix ? ` - ${formState.topBlock.headingSuffix}` : ''}`;
 }
 
 function buildParagraphBlock(paragraph: GeneratedParagraph): ParagraphBlock {
   return {
     id: `paragraph-${paragraph.id}`,
     kind: 'paragraph_block',
+    role: paragraph.sectionId === 'CLOSING' ? 'closing' : 'body',
     alignment: 'left',
     title: paragraph.title,
     text: paragraph.text,
@@ -25,30 +31,84 @@ function buildParagraphBlock(paragraph: GeneratedParagraph): ParagraphBlock {
   };
 }
 
-function buildMetadataBlock(paragraph: GeneratedParagraph): MetadataBlock {
-  return {
-    id: 'metadata-top-block',
-    kind: 'metadata_block',
-    alignment: 'left',
-    title: paragraph.title,
-    lines: splitLines(paragraph.text),
-    sectionId: paragraph.sectionId,
-    clauseRefs: paragraph.clauseRefs,
-    ruleRefs: paragraph.ruleRefs
-  };
-}
-
-function buildOfficeAddressBlock(): MetadataBlock {
+function buildOfficeAddressBlock(topBlock?: GeneratedParagraph): MetadataBlock {
   const definition = getReportSectionDefinition('META_01');
 
   return {
     id: 'metadata-office-address',
     kind: 'metadata_block',
+    role: 'office_address',
     alignment: 'right',
     title: definition?.name ?? 'Office Address Block',
     lines: ['2304 - 119 Avenue NE', 'Edmonton, Alberta', 'T6S 1B3'],
-    clauseRefs: toClauseRefs(['META_01']),
-    ruleRefs: toRuleRefs(['DT_001'])
+    emphasisLineIndexes: [],
+    sectionId: topBlock?.sectionId,
+    clauseRefs: topBlock?.clauseRefs ?? toClauseRefs(['META_01']),
+    ruleRefs: topBlock?.ruleRefs ?? toRuleRefs(['DT_001'])
+  };
+}
+
+function buildDateAndFileBlock(formState: FormState, topBlock: GeneratedParagraph): MetadataBlock {
+  const dateLine = formState.topBlock.letterDate;
+  const fileNumberLine = `File No. ${formState.topBlock.fileNumber}`;
+
+  return {
+    id: 'metadata-date-file',
+    kind: 'metadata_block',
+    role: 'date_file',
+    alignment: 'right',
+    title: 'Date and file number',
+    lines: [dateLine, fileNumberLine],
+    dateLine,
+    fileNumberLine,
+    sectionId: topBlock.sectionId,
+    clauseRefs: topBlock.clauseRefs,
+    ruleRefs: topBlock.ruleRefs
+  };
+}
+
+function buildClientAddressBlock(formState: FormState, topBlock: GeneratedParagraph): MetadataBlock {
+  const lines = [formState.topBlock.clientName, ...formState.topBlock.clientMailingAddress];
+
+  return {
+    id: 'metadata-client-address',
+    kind: 'metadata_block',
+    role: 'client_address',
+    alignment: 'left',
+    title: 'Client address block',
+    lines,
+    emphasisLineIndexes: [0],
+    sectionId: topBlock.sectionId,
+    clauseRefs: topBlock.clauseRefs,
+    ruleRefs: topBlock.ruleRefs
+  };
+}
+
+function buildReBlock(formState: FormState, topBlock: GeneratedParagraph): MetadataBlock {
+  const detailLines = [
+    formState.topBlock.includeLegalDescription && formState.topBlock.lot && formState.topBlock.block && formState.topBlock.plan
+      ? `Lot ${formState.topBlock.lot}, Block ${formState.topBlock.block}, Plan ${formState.topBlock.plan}`
+      : null,
+    formState.topBlock.streetAddress,
+    formState.topBlock.includeSubdivision && formState.topBlock.subdivision ? formState.topBlock.subdivision : null,
+    formState.topBlock.municipality,
+    formState.topBlock.includeClientJobNumber && formState.topBlock.clientJobNumber
+      ? `Client Job No.: ${formState.topBlock.clientJobNumber}`
+      : null
+  ].filter((value): value is string => Boolean(value));
+
+  return {
+    id: 'metadata-re-block',
+    kind: 'metadata_block',
+    role: 're_block',
+    alignment: 'left',
+    title: 'Re block',
+    lines: [`Re: ${getSubjectLine(formState)}`, ...detailLines],
+    subjectLine: getSubjectLine(formState),
+    detailLines,
+    sectionId: topBlock.sectionId,
+    clauseRefs: topBlock.clauseRefs,
+    ruleRefs: topBlock.ruleRefs
   };
 }
 
@@ -56,6 +116,7 @@ function buildFirstPageHeader(): HeaderBlock {
   return {
     id: 'header-first-page',
     kind: 'header_block',
+    role: 'first_page_identity',
     alignment: 'center',
     title: 'First-page header',
     lines: ['J.R. Paine & Associates Ltd.', 'CONSULTING AND TESTING ENGINEERS', 'EDMONTON - GRANDE PRAIRIE - PEACE RIVER']
@@ -63,38 +124,58 @@ function buildFirstPageHeader(): HeaderBlock {
 }
 
 function buildContinuationHeader(formState: FormState): HeaderBlock {
+  const subjectLine = getSubjectLine(formState);
+  const fileNumberLine = `File No. ${formState.topBlock.fileNumber}`;
+
   return {
     id: 'header-continuation-page',
     kind: 'header_block',
+    role: 'continuation_subject',
     alignment: 'left',
     title: 'Continuation header',
-    lines: [
-      'J.R. Paine & Associates Ltd.',
-      'FOUNDATION SOIL INSPECTION LETTER - CONTINUED',
-      `File No.: ${formState.topBlock.fileNumber}`
-    ]
+    lines: [`${subjectLine}    ${fileNumberLine}`],
+    subjectLine,
+    fileNumberLine
   };
 }
 
+function buildOfficeContacts() {
+  return [
+    { city: 'EDMONTON', phone: '780-489-0700' },
+    { city: 'GRANDE PRAIRIE', phone: '780-532-1515' },
+    { city: 'PEACE RIVER', phone: '780-624-4966' }
+  ];
+}
+
 function buildFirstPageFooter(archivePath: string): FooterBlock {
+  const offices = buildOfficeContacts();
+
   return {
     id: 'footer-first-page',
     kind: 'footer_block',
+    role: 'office_contacts',
     alignment: 'center',
     title: 'First-page footer',
-    lines: ['EDMONTON    GRANDE PRAIRIE    PEACE RIVER', '780-489-0700    780-532-1515    780-624-4966', archivePath],
+    lines: [...offices.flatMap((office) => [office.city, office.phone]), archivePath],
+    offices,
+    archivePathLine: archivePath,
     clauseRefs: toClauseRefs(['FMT_02', 'SIG_04']),
     ruleRefs: toRuleRefs(['DT_115'])
   };
 }
 
-function buildContinuationFooter(formState: FormState, filename: string, archivePath: string): FooterBlock {
+function buildContinuationFooter(archivePath: string): FooterBlock {
+  const offices = buildOfficeContacts();
+
   return {
     id: 'footer-continuation-page',
     kind: 'footer_block',
-    alignment: 'left',
+    role: 'continuation_footer',
+    alignment: 'center',
     title: 'Continuation footer',
-    lines: [`${formState.topBlock.clientName} | ${formState.topBlock.streetAddress}`, `Export filename: ${filename}`, archivePath],
+    lines: [...offices.flatMap((office) => [office.city, office.phone]), archivePath],
+    offices,
+    archivePathLine: archivePath,
     clauseRefs: toClauseRefs(['FMT_03', 'SIG_04']),
     ruleRefs: toRuleRefs(['DT_115'])
   };
@@ -114,8 +195,8 @@ function buildSignoffBlock(formState: FormState, paragraph: GeneratedParagraph):
       organization: signoff.organization,
       lines: signoff.lines,
       engineerMemberNumberLine: signoff.signingEngineer.profile.memberNumber
-        ? `Member No.: ${signoff.signingEngineer.profile.memberNumber}`
-        : 'Member No.: [registry pending]',
+        ? `APEGA Member #: ${signoff.signingEngineer.profile.memberNumber}`
+        : 'APEGA Member #: [registry pending]',
       stampPlaceholderLine: signoff.signingEngineer.profile.stampAssetKey
         ? `[Engineer stamp placeholder: ${signoff.signingEngineer.profile.stampAssetKey}]`
         : `[Engineer stamp placeholder for ${engineerName}]`,
@@ -161,11 +242,12 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
   const topBlock = getParagraphBySection(result, 'TOP_BLOCK');
   const closing = getParagraphBySection(result, 'CLOSING');
   const signoffParagraph = getParagraphBySection(result, 'SIGNOFF');
-  const officeAddress = buildOfficeAddressBlock();
 
   if (topBlock) {
-    firstPageBodyBlocks.push(officeAddress);
-    firstPageBodyBlocks.push(buildMetadataBlock(topBlock));
+    firstPageBodyBlocks.push(buildOfficeAddressBlock(topBlock));
+    firstPageBodyBlocks.push(buildDateAndFileBlock(formState, topBlock));
+    firstPageBodyBlocks.push(buildClientAddressBlock(formState, topBlock));
+    firstPageBodyBlocks.push(buildReBlock(formState, topBlock));
   }
 
   for (const paragraph of result.paragraphs) {
@@ -190,6 +272,8 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
     exportWarnings.push(...signoffBlock.warnings);
   }
 
+  const uniqueWarnings = [...new Set(exportWarnings)];
+
   return {
     pages: [
       {
@@ -204,7 +288,7 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
         kind: 'continuation_page',
         headerBlock: buildContinuationHeader(formState),
         bodyBlocks: continuationBodyBlocks,
-        footerBlock: buildContinuationFooter(formState, result.filename, result.archivePath)
+        footerBlock: buildContinuationFooter(result.archivePath)
       }
     ],
     filename: result.filename,
@@ -213,7 +297,7 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
     reviewFlags: result.reviewFlags,
     clauseRefsUsed: result.clauseRefsUsed,
     ruleRefsUsed: result.ruleRefsUsed,
-    exportWarnings: [...new Set(exportWarnings)],
-    readiness: collectReadinessLabel(result.reviewFlags.length, [...new Set(exportWarnings)].length)
+    exportWarnings: uniqueWarnings,
+    readiness: collectReadinessLabel(result.reviewFlags.length, uniqueWarnings.length)
   };
 }

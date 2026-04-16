@@ -17,6 +17,10 @@ describe('buildDocx', () => {
     const document = composeLetterDocument(formState, result);
     const docx = await buildDocx(document);
 
+    expect(
+      document.pages[0].bodyBlocks.some((block) => block.kind === 'metadata_block' && block.role === 'date_file')
+    ).toBe(true);
+    expect(document.pages[1].headerBlock.role).toBe('continuation_subject');
     expect(docx.contentType).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     expect(docx.filename).toBe('h38566vic.docx');
     expect(docx.buffer.byteLength).toBeGreaterThan(100);

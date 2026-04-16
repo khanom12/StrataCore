@@ -3,6 +3,10 @@ import type { ClauseRef, ReviewFlag, RuleRef, SectionId } from '@/types/domain';
 export type DocumentPageKind = 'first_page' | 'continuation_page';
 export type DocumentReadinessStatus = 'ready' | 'warning' | 'review_required';
 export type DocumentAlignment = 'left' | 'center' | 'right';
+export type HeaderBlockRole = 'first_page_identity' | 'continuation_subject';
+export type MetadataBlockRole = 'office_address' | 'date_file' | 'client_address' | 're_block';
+export type ParagraphBlockRole = 'body' | 'closing';
+export type FooterBlockRole = 'office_contacts' | 'continuation_footer';
 export type DocumentBlockKind =
   | 'header_block'
   | 'metadata_block'
@@ -20,14 +24,23 @@ interface DocumentBlockBase {
 
 export interface HeaderBlock extends DocumentBlockBase {
   kind: 'header_block';
+  role: HeaderBlockRole;
   title: string;
   lines: string[];
+  subjectLine?: string;
+  fileNumberLine?: string;
 }
 
 export interface MetadataBlock extends DocumentBlockBase {
   kind: 'metadata_block';
+  role: MetadataBlockRole;
   title: string;
   lines: string[];
+  dateLine?: string;
+  fileNumberLine?: string;
+  subjectLine?: string;
+  detailLines?: string[];
+  emphasisLineIndexes?: number[];
   sectionId?: SectionId;
   clauseRefs: ClauseRef[];
   ruleRefs: RuleRef[];
@@ -35,6 +48,7 @@ export interface MetadataBlock extends DocumentBlockBase {
 
 export interface ParagraphBlock extends DocumentBlockBase {
   kind: 'paragraph_block';
+  role: ParagraphBlockRole;
   title: string;
   text: string;
   sectionId: SectionId;
@@ -62,8 +76,14 @@ export interface SignoffBlock extends DocumentBlockBase {
 
 export interface FooterBlock extends DocumentBlockBase {
   kind: 'footer_block';
+  role: FooterBlockRole;
   title: string;
   lines: string[];
+  offices?: Array<{
+    city: string;
+    phone: string;
+  }>;
+  archivePathLine?: string;
   clauseRefs: ClauseRef[];
   ruleRefs: RuleRef[];
 }

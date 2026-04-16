@@ -1,4 +1,5 @@
 import { buildArchivePath, buildFilename } from '@/lib/export/build-filename';
+import { normalizeDependentFormState } from '@/lib/form/normalize-dependent-state';
 import { buildSignoffModel } from '@/lib/signoff/build-signoff-model';
 import { formatSignoffName } from '@/lib/signoff/engineer-registry';
 import { createReviewFlag } from '@/lib/review/flags';
@@ -958,8 +959,10 @@ function buildSignoffParagraph(formState: FormState): GeneratedParagraph {
     '',
     signoff.organization,
     '',
-    ...signoff.lines.map((line) => `${line.label}: ${line.value}`),
-    signoff.signingEngineer.profile.memberNumber ? `Member No.: ${signoff.signingEngineer.profile.memberNumber}` : 'Member No.: [registry pending]',
+    ...signoff.lines.flatMap((line) => [line.label, line.value]),
+    signoff.signingEngineer.profile.memberNumber
+      ? `APEGA Member #: ${signoff.signingEngineer.profile.memberNumber}`
+      : 'APEGA Member #: [registry pending]',
     signoff.signingEngineer.profile.stampAssetKey
       ? `[Engineer stamp placeholder: ${signoff.signingEngineer.profile.stampAssetKey}]`
       : `[Engineer stamp placeholder for ${engineerName}]`,
@@ -998,19 +1001,20 @@ function collectRuleRefsUsed(paragraphs: GeneratedParagraph[], reviewFlags: Revi
 export { deriveHouseCutRange };
 
 export function generateLetter(formState: FormState): GenerationResult {
+  const normalizedFormState = normalizeDependentFormState(formState);
   const reviewFlags: ReviewFlag[] = [];
   const paragraphs: GeneratedParagraph[] = [];
 
-  const topBlock = buildTopBlockParagraph(formState);
-  const p1 = buildP1Paragraph(formState);
-  const p2 = buildP2Paragraph(formState, reviewFlags);
-  const p3 = buildP3Paragraph(formState, reviewFlags);
-  const p4 = buildP4Paragraph(formState, reviewFlags);
-  const p5 = buildP5Paragraph(formState, reviewFlags);
-  const p6 = buildP6Paragraph(formState);
-  const p7 = buildP7Paragraph(formState);
+  const topBlock = buildTopBlockParagraph(normalizedFormState);
+  const p1 = buildP1Paragraph(normalizedFormState);
+  const p2 = buildP2Paragraph(normalizedFormState, reviewFlags);
+  const p3 = buildP3Paragraph(normalizedFormState, reviewFlags);
+  const p4 = buildP4Paragraph(normalizedFormState, reviewFlags);
+  const p5 = buildP5Paragraph(normalizedFormState, reviewFlags);
+  const p6 = buildP6Paragraph(normalizedFormState);
+  const p7 = buildP7Paragraph(normalizedFormState);
   const closing = buildClosingParagraph();
-  const signoff = buildSignoffParagraph(formState);
+  const signoff = buildSignoffParagraph(normalizedFormState);
 
   paragraphs.push(topBlock, p1, p2, p3, p4);
 
@@ -1029,8 +1033,8 @@ export function generateLetter(formState: FormState): GenerationResult {
   paragraphs.push(closing, signoff);
   paragraphs.sort((left, right) => left.order - right.order);
 
-  const filename = buildFilename(formState);
-  const archivePath = buildArchivePath(formState, filename);
+  const filename = buildFilename(normalizedFormState);
+  const archivePath = buildArchivePath(normalizedFormState, filename);
 
   return {
     paragraphs,

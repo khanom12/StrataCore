@@ -15,14 +15,18 @@ function flattenVisibleText(blocks: LetterDocumentBodyBlock[]): string {
     .map((block) => {
       switch (block.kind) {
         case 'metadata_block':
-          return block.lines.join('\n');
+          return [
+            ...(block.subjectLine ? [block.subjectLine] : []),
+            ...(block.detailLines ?? []),
+            ...block.lines
+          ].join('\n');
         case 'paragraph_block':
           return block.text;
         case 'signoff_block':
           return [
             block.salutationLine,
             block.organization,
-            ...block.lines.map((line) => `${line.label}: ${line.value}`),
+            ...block.lines.flatMap((line) => [line.label, line.value]),
             block.engineerMemberNumberLine,
             block.stampPlaceholderLine,
             block.permitToPracticeLine
@@ -55,7 +59,7 @@ describe('Victory Homes 2026 reference case', () => {
     expect(p3Text).toContain('This lot was part of an engineered fill program monitored and tested by our firm.');
   });
 
-  it('composes the office shell with confirmed header, address, footer, and Scott member number text', () => {
+  it('composes the office shell with confirmed header, address, footer, continuation header, and Scott member number text', () => {
     const formState = cloneFormState(victoryHomes2026IssuedExample);
     const result = generateLetter(formState);
     const document = composeLetterDocument(formState, result);
@@ -68,9 +72,12 @@ describe('Victory Homes 2026 reference case', () => {
     expect(visibleText).toContain('CONSULTING AND TESTING ENGINEERS');
     expect(visibleText).toContain('2304 - 119 Avenue NE');
     expect(visibleText).toContain('780-489-0700');
-    expect(visibleText).toContain('Member No.: 89667');
+    expect(visibleText).toContain('Foundation Soil Inspection    File No. 5478 - 1');
+    expect(visibleText).toContain('Reviewed by,');
+    expect(visibleText).toContain('APEGA Member #: 89667');
     expect(visibleText).not.toContain('Edmonton office block placeholder');
     expect(visibleText).not.toContain('First-page office footer placeholder');
     expect(visibleText).not.toContain('First-page header placeholder');
+    expect(visibleText).not.toContain('Continuation page');
   });
 });

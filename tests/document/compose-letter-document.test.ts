@@ -16,14 +16,18 @@ function flattenBodyText(blocks: LetterDocumentBodyBlock[]): string {
     .map((block) => {
       switch (block.kind) {
         case 'metadata_block':
-          return block.lines.join('\n');
+          return [
+            ...(block.subjectLine ? [block.subjectLine] : []),
+            ...(block.detailLines ?? []),
+            ...block.lines
+          ].join('\n');
         case 'paragraph_block':
           return block.text;
         case 'signoff_block':
           return [
             block.salutationLine,
             block.organization,
-            ...block.lines.map((line) => `${line.label}: ${line.value}`),
+            ...block.lines.flatMap((line) => [line.label, line.value]),
             block.engineerMemberNumberLine,
             block.stampPlaceholderLine,
             block.permitToPracticeLine
@@ -49,6 +53,20 @@ describe('composeLetterDocument', () => {
     expect(orderedSections).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P7', 'CLOSING']);
   });
 
+  it('keeps the Victory reference office address and continuation header in the composed shell', () => {
+    const formState = cloneFormState(victoryHomes2026IssuedExample);
+    const result = generateLetter(formState);
+    const document = composeLetterDocument(formState, result);
+    const officeAddressBlock = document.pages[0].bodyBlocks.find(
+      (block): block is Extract<LetterDocumentBodyBlock, { kind: 'metadata_block' }> => block.kind === 'metadata_block' && block.role === 'office_address'
+    );
+
+    expect(officeAddressBlock?.lines).toEqual(['2304 - 119 Avenue NE', 'Edmonton, Alberta', 'T6S 1B3']);
+    expect(document.pages[1].headerBlock.role).toBe('continuation_subject');
+    expect(document.pages[1].headerBlock.subjectLine).toBe('Foundation Soil Inspection');
+    expect(document.pages[1].headerBlock.fileNumberLine).toBe('File No. 5478 - 1');
+  });
+
   it('keeps the hidden H number out of visible body blocks while preserving it in the footer archive text', () => {
     const formState = cloneFormState(victoryHomes2026IssuedExample);
     const result = generateLetter(formState);
@@ -72,5 +90,22 @@ describe('composeLetterDocument', () => {
 
     expect(visibleText).not.toMatch(/\bCL_\d+\b/);
     expect(visibleText).not.toMatch(/\bDT_\d+\b/);
+  });
+
+  it('renders the Victory signoff block with reviewed-by wording, the Scott member number, and separated office footer contacts', () => {
+    const formState = cloneFormState(victoryHomes2026IssuedExample);
+    const result = generateLetter(formState);
+    const document = composeLetterDocument(formState, result);
+    const signoff = document.pages[1].bodyBlocks.find(
+      (block): block is Extract<LetterDocumentBodyBlock, { kind: 'signoff_block' }> => block.kind === 'signoff_block'
+    );
+
+    expect(signoff?.lines.some((line) => line.label === 'Reviewed by,' && line.value === 'Scott MacFarlane, P.Eng.')).toBe(true);
+    expect(signoff?.engineerMemberNumberLine).toBe('APEGA Member #: 89667');
+    expect(document.pages[1].footerBlock.offices).toEqual([
+      { city: 'EDMONTON', phone: '780-489-0700' },
+      { city: 'GRANDE PRAIRIE', phone: '780-532-1515' },
+      { city: 'PEACE RIVER', phone: '780-624-4966' }
+    ]);
   });
 });
