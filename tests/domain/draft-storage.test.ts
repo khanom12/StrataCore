@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeStoredDraftState } from '@/lib/draft/storage';
+import { defaultFormState } from '@/lib/draft/default-form-state';
+import { loadDraftState, normalizeStoredDraftState } from '@/lib/draft/storage';
 
 describe('draft-state normalization', () => {
   it('migrates the legacy scaffold draft shape into the normalized grouped FormState', () => {
@@ -106,5 +107,63 @@ describe('draft-state normalization', () => {
     expect(normalized.reportBody.garage.offsetAboveHouseM).toBe(0.6);
     expect(normalized.reportBody.garage.slabOrganics).toBe(true);
     expect(normalized.reportBody.winter.includeParagraph).toBe(false);
+  });
+
+  it('falls back safely when malformed stored draft JSON is encountered in localStorage', () => {
+    const originalWindow = globalThis.window;
+
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: () => '{not-valid-json',
+          setItem: () => undefined
+        }
+      }
+    });
+
+    try {
+      expect(loadDraftState()).toEqual(defaultFormState);
+    } finally {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        value: originalWindow
+      });
+    }
+  });
+
+  it('sanitizes malformed canonical-looking drafts back to safe defaults where needed', () => {
+    const normalized = normalizeStoredDraftState({
+      topBlock: {
+        clientMailingAddress: 'bad-value',
+        clientName: 'Still OK'
+      },
+      archive: {
+        hNumber: 'h12345'
+      },
+      reportBody: {
+        inspectionDate: '2026-04-20',
+        excavation: {
+          houseFootingCutDepthsM: {
+            frontLeftM: 'oops'
+          }
+        },
+        recommendation: {
+          footingBasis: 'standard'
+        },
+        garage: {
+          mode: 'same_elevation'
+        }
+      },
+      signoff: {
+        signingEngineer: 'Safe Engineer, P.Eng.'
+      }
+    });
+
+    expect(normalized.topBlock.clientName).toBe('Still OK');
+    expect(normalized.topBlock.clientMailingAddress).toEqual(defaultFormState.topBlock.clientMailingAddress);
+    expect(normalized.reportBody.excavation.houseFootingCutDepthsM.frontLeftM).toBe(
+      defaultFormState.reportBody.excavation.houseFootingCutDepthsM.frontLeftM
+    );
   });
 });

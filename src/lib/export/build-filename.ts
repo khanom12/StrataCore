@@ -1,3 +1,4 @@
+import { getCalendarYear } from '@/lib/domain/report-helpers';
 import type { FormState } from '@/types/domain';
 
 function slugify(value: string): string {
@@ -17,7 +18,7 @@ export function buildFilename(formState: FormState): string {
 }
 
 export function buildArchivePath(formState: FormState, filename: string): string {
-  const year = new Date(formState.topBlock.letterDate).getFullYear() || new Date().getFullYear();
+  const year = getCalendarYear(formState.topBlock.letterDate);
   const clientFolder = formState.topBlock.clientName.trim() || 'client-folder';
 
   return `H:/${year}/Housing/${clientFolder}/${filename}`;

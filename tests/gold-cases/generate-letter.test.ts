@@ -12,6 +12,8 @@ describe('generateLetter', () => {
   it('returns a normalized GenerationResult for the current happy path', () => {
     const formState = cloneFormState();
     const result = generateLetter(formState);
+    const topBlockText = result.paragraphs.find((paragraph) => paragraph.sectionId === 'TOP_BLOCK')?.text ?? '';
+    const p1Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P1')?.text ?? '';
 
     expect(result.visibleSections).toEqual([
       'TOP_BLOCK',
@@ -28,6 +30,8 @@ describe('generateLetter', () => {
     expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P1')?.text).toContain(
       'has conducted an inspection of the above noted excavation'
     );
+    expect(topBlockText).toContain('April 15, 2026');
+    expect(p1Text).toContain('January 28, 2026');
     expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P5')?.text).toContain(
       'standard footing foundation for the attached garage'
     );
@@ -94,5 +98,54 @@ describe('generateLetter', () => {
     const p2Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P2')?.text ?? '';
 
     expect(p2Text).toContain('1.2 to 2.0 m below the adjacent ground surface');
+  });
+
+  it('adds oversized trench remediation to P4 and switches the recommendation to conditional adequacy wording', () => {
+    const formState = cloneFormState();
+    formState.reportBody.excavation.oversizedTrench = true;
+    formState.reportBody.excavation.trenchLocation = 'front_left';
+
+    const result = generateLetter(formState);
+    const p4Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P4')?.text ?? '';
+
+    expect(p4Text).toContain('oversized service trench');
+    expect(p4Text).toContain('would then be considered adequate');
+    expect(result.reviewFlags.some((flag) => flag.id === 'review-oversized-trench-remediation')).toBe(true);
+  });
+
+  it('adds frost reinforcement wording ahead of the base P4 recommendation', () => {
+    const formState = cloneFormState();
+    formState.reportBody.excavation.frostDepthMm = 200;
+
+    const result = generateLetter(formState);
+    const p4Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P4')?.text ?? '';
+
+    expect(p4Text).toContain('Due to the frost');
+    expect(p4Text).toContain('would then be considered adequate');
+  });
+
+  it('uses conditional signoff wording instead of always forcing a reviewed-by line', () => {
+    const formState = cloneFormState();
+    formState.signoff.preparedBy = '';
+
+    const result = generateLetter(formState);
+    const signoffText = result.paragraphs.find((paragraph) => paragraph.sectionId === 'SIGNOFF')?.text ?? '';
+
+    expect(signoffText).toContain('Signed by: Reviewing Engineer, P.Eng.');
+    expect(signoffText).not.toContain('Reviewed by:');
+  });
+
+  it('threads secondary moisture, plasticity, and descriptors into P3 output', () => {
+    const formState = cloneFormState();
+    formState.reportBody.soil.moisture2 = 'wet';
+    formState.reportBody.soil.plasticity2 = 'high';
+    formState.reportBody.soil.clayDescriptors = ['silty'];
+
+    const result = generateLetter(formState);
+    const p3Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P3')?.text ?? '';
+
+    expect(p3Text).toContain('moist to wet');
+    expect(p3Text).toContain('silty clay');
+    expect(p3Text).toContain('medium to high plasticity');
   });
 });

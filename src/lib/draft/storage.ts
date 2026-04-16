@@ -3,6 +3,43 @@ import type { FormState } from '@/types/domain';
 
 const STORAGE_KEY = 'stratacore-letter-draft';
 
+const GARAGE_MODES = ['none', 'same_elevation', 'higher_than_house'] as const;
+const AS_CONSTRUCTED_MODES = ['none', 'poured_18in', 'poured_20in', 'poured_24in', 'walls_and_footing'] as const;
+const CONSTRUCTION_STAGES = ['normal', 'nearly_complete', 'framing'] as const;
+const SITE_HISTORY_VALUES = ['none', 'infill', 'knockdown_rebuild'] as const;
+const TRENCH_LOCATIONS = ['front', 'front_left', 'front_right'] as const;
+const RAIN_SOFTENED_MODES = ['none', 'saturated_soft_surficial', 'standing_water_rain_softened'] as const;
+const SOIL_LAYERING_MODES = ['single_layer', 'engineered_fill_over_native'] as const;
+const PRIMARY_SOIL_ORIGINS = [
+  'native',
+  'engineered_fill_jrp',
+  'engineered_fill_jrp_and_others',
+  'engineered_fill_others',
+  'engineered_fill_unknown'
+] as const;
+const PRIMARY_MATERIAL_FAMILIES = ['clay', 'clay_till', 'sand', 'silt', 'clayey_sand', 'clayey_silt'] as const;
+const CLAY_DESCRIPTORS = ['silty', 'very_silty', 'sandy', 'very_sandy'] as const;
+const SAND_SILT_DESCRIPTORS = ['coarse', 'medium', 'fine', 'well_graded', 'poorly_graded'] as const;
+const MOISTURE_DESCRIPTORS = ['damp', 'moist', 'very_moist', 'wet'] as const;
+const SOIL_COLOURS = ['brown', 'grey', 'brown_and_grey', 'brown_and_dark_grey', 'dark_grey', 'black', 'reddish_brown'] as const;
+const PLASTICITY_DESCRIPTORS = ['low', 'medium', 'high'] as const;
+const CONSISTENCY_DENSITY_DESCRIPTORS = [
+  'soft',
+  'firm',
+  'stiff',
+  'very_stiff',
+  'hard',
+  'very_loose',
+  'loose',
+  'compact',
+  'dense',
+  'very_dense'
+] as const;
+const TRACE_FEATURES = ['oxides', 'white_precipitates', 'coal', 'gravel', 'organics', 'rootlets'] as const;
+const FOOTING_BASIS_OPTIONS = ['standard', 'modified'] as const;
+const SPREAD_FOOTING_FAMILIES = ['omit', 'default_140_kpa', 'review_100_kpa'] as const;
+const SULPHATE_CLASSES = ['negligible', 'moderate', 'severe', 'very_severe'] as const;
+
 type LegacyScaffoldDraft = {
   meta?: {
     letterDate?: string;
@@ -139,106 +176,159 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object';
 }
 
-function mergeWithDefaultFormState(value: DeepPartial<FormState>): FormState {
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readBoolean(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function readNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function readStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value.filter((item): item is string => typeof item === 'string');
+  return items.length ? items : undefined;
+}
+
+function readEnum<T extends readonly string[]>(value: unknown, options: T): T[number] | undefined {
+  return typeof value === 'string' && options.includes(value as T[number]) ? (value as T[number]) : undefined;
+}
+
+function readEnumArray<T extends readonly string[]>(value: unknown, options: T): T[number][] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  const items = value.filter((item): item is T[number] => typeof item === 'string' && options.includes(item as T[number]));
+  return items.length ? items : undefined;
+}
+
+function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): FormState {
+  const root = isRecord(value) ? value : {};
+  const topBlock = isRecord(root.topBlock) ? root.topBlock : {};
+  const archive = isRecord(root.archive) ? root.archive : {};
+  const reportBody = isRecord(root.reportBody) ? root.reportBody : {};
+  const excavation = isRecord(reportBody.excavation) ? reportBody.excavation : {};
+  const cutDepths = isRecord(excavation.houseFootingCutDepthsM) ? excavation.houseFootingCutDepthsM : {};
+  const soil = isRecord(reportBody.soil) ? reportBody.soil : {};
+  const recommendation = isRecord(reportBody.recommendation) ? reportBody.recommendation : {};
+  const garage = isRecord(reportBody.garage) ? reportBody.garage : {};
+  const sulphate = isRecord(reportBody.sulphate) ? reportBody.sulphate : {};
+  const winter = isRecord(reportBody.winter) ? reportBody.winter : {};
+  const signoff = isRecord(root.signoff) ? root.signoff : {};
+
   return {
     topBlock: {
-      letterDate: value.topBlock?.letterDate ?? defaultFormState.topBlock.letterDate,
-      fileNumber: value.topBlock?.fileNumber ?? defaultFormState.topBlock.fileNumber,
-      clientName: value.topBlock?.clientName ?? defaultFormState.topBlock.clientName,
-      clientMailingAddress: value.topBlock?.clientMailingAddress ?? defaultFormState.topBlock.clientMailingAddress,
-      headingSuffix: value.topBlock?.headingSuffix ?? defaultFormState.topBlock.headingSuffix,
-      includeLegalDescription: value.topBlock?.includeLegalDescription ?? defaultFormState.topBlock.includeLegalDescription,
-      lot: value.topBlock?.lot ?? defaultFormState.topBlock.lot,
-      block: value.topBlock?.block ?? defaultFormState.topBlock.block,
-      plan: value.topBlock?.plan ?? defaultFormState.topBlock.plan,
-      streetAddress: value.topBlock?.streetAddress ?? defaultFormState.topBlock.streetAddress,
-      includeClientJobNumber: value.topBlock?.includeClientJobNumber ?? defaultFormState.topBlock.includeClientJobNumber,
-      clientJobNumber: value.topBlock?.clientJobNumber ?? defaultFormState.topBlock.clientJobNumber,
-      includeSubdivision: value.topBlock?.includeSubdivision ?? defaultFormState.topBlock.includeSubdivision,
-      subdivision: value.topBlock?.subdivision ?? defaultFormState.topBlock.subdivision,
-      municipality: value.topBlock?.municipality ?? defaultFormState.topBlock.municipality
+      letterDate: readString(topBlock.letterDate) ?? defaultFormState.topBlock.letterDate,
+      fileNumber: readString(topBlock.fileNumber) ?? defaultFormState.topBlock.fileNumber,
+      clientName: readString(topBlock.clientName) ?? defaultFormState.topBlock.clientName,
+      clientMailingAddress: readStringArray(topBlock.clientMailingAddress) ?? defaultFormState.topBlock.clientMailingAddress,
+      headingSuffix: readString(topBlock.headingSuffix) ?? defaultFormState.topBlock.headingSuffix,
+      includeLegalDescription: readBoolean(topBlock.includeLegalDescription) ?? defaultFormState.topBlock.includeLegalDescription,
+      lot: readString(topBlock.lot) ?? defaultFormState.topBlock.lot,
+      block: readString(topBlock.block) ?? defaultFormState.topBlock.block,
+      plan: readString(topBlock.plan) ?? defaultFormState.topBlock.plan,
+      streetAddress: readString(topBlock.streetAddress) ?? defaultFormState.topBlock.streetAddress,
+      includeClientJobNumber: readBoolean(topBlock.includeClientJobNumber) ?? defaultFormState.topBlock.includeClientJobNumber,
+      clientJobNumber: readString(topBlock.clientJobNumber) ?? defaultFormState.topBlock.clientJobNumber,
+      includeSubdivision: readBoolean(topBlock.includeSubdivision) ?? defaultFormState.topBlock.includeSubdivision,
+      subdivision: readString(topBlock.subdivision) ?? defaultFormState.topBlock.subdivision,
+      municipality: readString(topBlock.municipality) ?? defaultFormState.topBlock.municipality
     },
     archive: {
-      hNumber: value.archive?.hNumber ?? defaultFormState.archive.hNumber
+      hNumber: readString(archive.hNumber) ?? defaultFormState.archive.hNumber
     },
     reportBody: {
-      inspectionDate: value.reportBody?.inspectionDate ?? defaultFormState.reportBody.inspectionDate,
+      inspectionDate: readString(reportBody.inspectionDate) ?? defaultFormState.reportBody.inspectionDate,
       excavation: {
         houseFootingCutDepthsM: {
-          frontLeftM:
-            value.reportBody?.excavation?.houseFootingCutDepthsM?.frontLeftM ??
-            defaultFormState.reportBody.excavation.houseFootingCutDepthsM.frontLeftM,
-          frontRightM:
-            value.reportBody?.excavation?.houseFootingCutDepthsM?.frontRightM ??
-            defaultFormState.reportBody.excavation.houseFootingCutDepthsM.frontRightM,
-          rearLeftM:
-            value.reportBody?.excavation?.houseFootingCutDepthsM?.rearLeftM ??
-            defaultFormState.reportBody.excavation.houseFootingCutDepthsM.rearLeftM,
-          rearRightM:
-            value.reportBody?.excavation?.houseFootingCutDepthsM?.rearRightM ??
-            defaultFormState.reportBody.excavation.houseFootingCutDepthsM.rearRightM
+          frontLeftM: readNumber(cutDepths.frontLeftM) ?? defaultFormState.reportBody.excavation.houseFootingCutDepthsM.frontLeftM,
+          frontRightM: readNumber(cutDepths.frontRightM) ?? defaultFormState.reportBody.excavation.houseFootingCutDepthsM.frontRightM,
+          rearLeftM: readNumber(cutDepths.rearLeftM) ?? defaultFormState.reportBody.excavation.houseFootingCutDepthsM.rearLeftM,
+          rearRightM: readNumber(cutDepths.rearRightM) ?? defaultFormState.reportBody.excavation.houseFootingCutDepthsM.rearRightM
         },
-        walkoutBasement: value.reportBody?.excavation?.walkoutBasement ?? defaultFormState.reportBody.excavation.walkoutBasement,
-        gardenSuiteMode: value.reportBody?.excavation?.gardenSuiteMode ?? defaultFormState.reportBody.excavation.gardenSuiteMode,
-        asConstructedMode: value.reportBody?.excavation?.asConstructedMode ?? defaultFormState.reportBody.excavation.asConstructedMode,
-        constructionStage:
-          value.reportBody?.excavation?.constructionStage ?? defaultFormState.reportBody.excavation.constructionStage,
-        siteHistory: value.reportBody?.excavation?.siteHistory ?? defaultFormState.reportBody.excavation.siteHistory,
-        oversizedTrench:
-          value.reportBody?.excavation?.oversizedTrench ?? defaultFormState.reportBody.excavation.oversizedTrench,
-        trenchLocation: value.reportBody?.excavation?.trenchLocation ?? defaultFormState.reportBody.excavation.trenchLocation,
-        sloughMaterial: value.reportBody?.excavation?.sloughMaterial ?? defaultFormState.reportBody.excavation.sloughMaterial,
-        loosePeelingMaterial:
-          value.reportBody?.excavation?.loosePeelingMaterial ?? defaultFormState.reportBody.excavation.loosePeelingMaterial,
-        frostDepthMm: value.reportBody?.excavation?.frostDepthMm ?? defaultFormState.reportBody.excavation.frostDepthMm,
-        freeWaterInAugerHoles:
-          value.reportBody?.excavation?.freeWaterInAugerHoles ?? defaultFormState.reportBody.excavation.freeWaterInAugerHoles,
-        waterContext: value.reportBody?.excavation?.waterContext ?? defaultFormState.reportBody.excavation.waterContext,
-        rainSoftenedMode:
-          value.reportBody?.excavation?.rainSoftenedMode ?? defaultFormState.reportBody.excavation.rainSoftenedMode,
-        snowDepthMm: value.reportBody?.excavation?.snowDepthMm ?? defaultFormState.reportBody.excavation.snowDepthMm,
-        exposedElectricalTrench:
-          value.reportBody?.excavation?.exposedElectricalTrench ??
-          defaultFormState.reportBody.excavation.exposedElectricalTrench,
-        groundHeatingSystem:
-          value.reportBody?.excavation?.groundHeatingSystem ?? defaultFormState.reportBody.excavation.groundHeatingSystem
+        walkoutBasement: readBoolean(excavation.walkoutBasement) ?? defaultFormState.reportBody.excavation.walkoutBasement,
+        gardenSuiteMode: readBoolean(excavation.gardenSuiteMode) ?? defaultFormState.reportBody.excavation.gardenSuiteMode,
+        asConstructedMode: readEnum(excavation.asConstructedMode, AS_CONSTRUCTED_MODES) ?? defaultFormState.reportBody.excavation.asConstructedMode,
+        constructionStage: readEnum(excavation.constructionStage, CONSTRUCTION_STAGES) ?? defaultFormState.reportBody.excavation.constructionStage,
+        siteHistory: readEnum(excavation.siteHistory, SITE_HISTORY_VALUES) ?? defaultFormState.reportBody.excavation.siteHistory,
+        oversizedTrench: readBoolean(excavation.oversizedTrench) ?? defaultFormState.reportBody.excavation.oversizedTrench,
+        trenchLocation: readEnum(excavation.trenchLocation, TRENCH_LOCATIONS) ?? defaultFormState.reportBody.excavation.trenchLocation,
+        sloughMaterial: readBoolean(excavation.sloughMaterial) ?? defaultFormState.reportBody.excavation.sloughMaterial,
+        loosePeelingMaterial: readBoolean(excavation.loosePeelingMaterial) ?? defaultFormState.reportBody.excavation.loosePeelingMaterial,
+        frostDepthMm: readNumber(excavation.frostDepthMm) ?? defaultFormState.reportBody.excavation.frostDepthMm,
+        freeWaterInAugerHoles: readBoolean(excavation.freeWaterInAugerHoles) ?? defaultFormState.reportBody.excavation.freeWaterInAugerHoles,
+        waterContext: readString(excavation.waterContext) ?? defaultFormState.reportBody.excavation.waterContext,
+        rainSoftenedMode: readEnum(excavation.rainSoftenedMode, RAIN_SOFTENED_MODES) ?? defaultFormState.reportBody.excavation.rainSoftenedMode,
+        snowDepthMm: readNumber(excavation.snowDepthMm) ?? defaultFormState.reportBody.excavation.snowDepthMm,
+        exposedElectricalTrench: readBoolean(excavation.exposedElectricalTrench) ?? defaultFormState.reportBody.excavation.exposedElectricalTrench,
+        groundHeatingSystem: readBoolean(excavation.groundHeatingSystem) ?? defaultFormState.reportBody.excavation.groundHeatingSystem
       },
       soil: {
-        ...defaultFormState.reportBody.soil,
-        ...(value.reportBody?.soil ?? {})
+        soilLayeringMode: readEnum(soil.soilLayeringMode, SOIL_LAYERING_MODES) ?? defaultFormState.reportBody.soil.soilLayeringMode,
+        primarySoilOrigin: readEnum(soil.primarySoilOrigin, PRIMARY_SOIL_ORIGINS) ?? defaultFormState.reportBody.soil.primarySoilOrigin,
+        primaryMaterialFamily:
+          readEnum(soil.primaryMaterialFamily, PRIMARY_MATERIAL_FAMILIES) ?? defaultFormState.reportBody.soil.primaryMaterialFamily,
+        clayDescriptors: readEnumArray(soil.clayDescriptors, CLAY_DESCRIPTORS) ?? defaultFormState.reportBody.soil.clayDescriptors,
+        sandSiltDescriptors:
+          readEnumArray(soil.sandSiltDescriptors, SAND_SILT_DESCRIPTORS) ?? defaultFormState.reportBody.soil.sandSiltDescriptors,
+        moisture1: readEnum(soil.moisture1, MOISTURE_DESCRIPTORS) ?? defaultFormState.reportBody.soil.moisture1,
+        moisture2: readEnum(soil.moisture2, MOISTURE_DESCRIPTORS.filter((item) => item !== 'damp') as ['moist', 'very_moist', 'wet']) ?? defaultFormState.reportBody.soil.moisture2,
+        colour: readEnum(soil.colour, SOIL_COLOURS) ?? defaultFormState.reportBody.soil.colour,
+        plasticity1: readEnum(soil.plasticity1, PLASTICITY_DESCRIPTORS) ?? defaultFormState.reportBody.soil.plasticity1,
+        plasticity2:
+          readEnum(soil.plasticity2, PLASTICITY_DESCRIPTORS.filter((item) => item !== 'low') as ['medium', 'high']) ??
+          defaultFormState.reportBody.soil.plasticity2,
+        consistencyOrDensity:
+          readEnum(soil.consistencyOrDensity, CONSISTENCY_DENSITY_DESCRIPTORS) ??
+          defaultFormState.reportBody.soil.consistencyOrDensity,
+        traceFeatures: readEnumArray(soil.traceFeatures, TRACE_FEATURES) ?? defaultFormState.reportBody.soil.traceFeatures,
+        highPlasticWarning: readBoolean(soil.highPlasticWarning) ?? defaultFormState.reportBody.soil.highPlasticWarning
       },
       recommendation: {
-        footingBasis: value.reportBody?.recommendation?.footingBasis ?? defaultFormState.reportBody.recommendation.footingBasis,
+        footingBasis: readEnum(recommendation.footingBasis, FOOTING_BASIS_OPTIONS) ?? defaultFormState.reportBody.recommendation.footingBasis,
         spreadFootingFamily:
-          value.reportBody?.recommendation?.spreadFootingFamily ??
+          readEnum(recommendation.spreadFootingFamily, SPREAD_FOOTING_FAMILIES) ??
           defaultFormState.reportBody.recommendation.spreadFootingFamily
       },
       garage: {
-        mode: value.reportBody?.garage?.mode ?? defaultFormState.reportBody.garage.mode,
-        offsetAboveHouseM: value.reportBody?.garage?.offsetAboveHouseM ?? defaultFormState.reportBody.garage.offsetAboveHouseM,
-        slabOrganics: value.reportBody?.garage?.slabOrganics ?? defaultFormState.reportBody.garage.slabOrganics
+        mode: readEnum(garage.mode, GARAGE_MODES) ?? defaultFormState.reportBody.garage.mode,
+        offsetAboveHouseM: readNumber(garage.offsetAboveHouseM) ?? defaultFormState.reportBody.garage.offsetAboveHouseM,
+        slabOrganics: readBoolean(garage.slabOrganics) ?? defaultFormState.reportBody.garage.slabOrganics
       },
       sulphate: {
-        includeParagraph: value.reportBody?.sulphate?.includeParagraph ?? defaultFormState.reportBody.sulphate.includeParagraph,
-        sulphateClass: value.reportBody?.sulphate?.sulphateClass ?? defaultFormState.reportBody.sulphate.sulphateClass
+        includeParagraph: readBoolean(sulphate.includeParagraph) ?? defaultFormState.reportBody.sulphate.includeParagraph,
+        sulphateClass: readEnum(sulphate.sulphateClass, SULPHATE_CLASSES) ?? defaultFormState.reportBody.sulphate.sulphateClass
       },
       winter: {
-        includeParagraph: value.reportBody?.winter?.includeParagraph ?? defaultFormState.reportBody.winter.includeParagraph
+        includeParagraph: readBoolean(winter.includeParagraph) ?? defaultFormState.reportBody.winter.includeParagraph
       }
     },
     signoff: {
-      preparedBy: value.signoff?.preparedBy ?? defaultFormState.signoff.preparedBy,
-      signingEngineer: value.signoff?.signingEngineer ?? defaultFormState.signoff.signingEngineer
+      preparedBy: readString(signoff.preparedBy) ?? defaultFormState.signoff.preparedBy,
+      signingEngineer: readString(signoff.signingEngineer) ?? defaultFormState.signoff.signingEngineer
     }
   };
 }
 
 function isCanonicalFormState(value: unknown): value is FormState {
-  if (!isRecord(value) || !isRecord(value.topBlock) || !isRecord(value.reportBody)) {
-    return false;
-  }
-
-  return 'inspectionDate' in value.reportBody && 'recommendation' in value.reportBody && 'garage' in value.reportBody;
+  return (
+    isRecord(value) &&
+    isRecord(value.topBlock) &&
+    isRecord(value.archive) &&
+    isRecord(value.reportBody) &&
+    isRecord(value.signoff) &&
+    'inspectionDate' in value.reportBody &&
+    'recommendation' in value.reportBody &&
+    'garage' in value.reportBody
+  );
 }
 
 function isInterimNormalizedDraft(value: unknown): value is InterimNormalizedDraft {
@@ -254,8 +344,8 @@ function isLegacyScaffoldDraft(value: unknown): value is LegacyScaffoldDraft {
 }
 
 function migrateLegacyScaffoldDraft(legacy: LegacyScaffoldDraft): FormState {
-  const minimumCut = legacy.p2?.minCutM;
-  const maximumCut = legacy.p2?.maxCutM;
+  const minimumCut = readNumber(legacy.p2?.minCutM);
+  const maximumCut = readNumber(legacy.p2?.maxCutM);
 
   return mergeWithDefaultFormState({
     topBlock: {

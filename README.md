@@ -34,6 +34,14 @@ npm run dev
 npm test
 ```
 
+## Local smoke checklist
+
+1. Run `npm install`
+2. Run `npm run dev`
+3. Open `/`, `/form`, and `/preview` in the local Next.js URL shown in the terminal
+4. Check `/api/generate` with a POST request and expect normalized letter JSON
+5. Check `/api/export` with a POST request and expect the intentional `not_implemented` DOCX stub response
+
 ## Workflow
 
 - `/` shows the seed-backed repo summary and routes into the workflow.

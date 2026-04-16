@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 
+import { normalizeStoredDraftState } from '@/lib/draft/storage';
 import { buildDocx } from '@/lib/export/build-docx';
-import type { FormState } from '@/types/domain';
 
 export async function POST(request: Request) {
-  const formState = (await request.json()) as FormState;
+  let payload: unknown;
 
-  return NextResponse.json(buildDocx(formState), { status: 501 });
+  try {
+    payload = await request.json();
+  } catch {
+    payload = undefined;
+  }
+
+  return NextResponse.json(buildDocx(normalizeStoredDraftState(payload)), { status: 501 });
 }
-

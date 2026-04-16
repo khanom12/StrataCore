@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, type ChangeEvent } from 'react';
 
+import { deriveHouseCutRange } from '@/lib/domain/report-helpers';
 import { defaultFormState } from '@/lib/draft/default-form-state';
 import { loadDraftState, saveDraftState } from '@/lib/draft/storage';
 import type { FormState, SoilInputs } from '@/types/domain';
@@ -12,9 +13,16 @@ function selectedValues(event: ChangeEvent<HTMLSelectElement>) {
   return Array.from(event.target.selectedOptions).map((option) => option.value);
 }
 
+function formatDerivedNumber(value?: number) {
+  return value === undefined ? 'n/a' : `${value.toFixed(1)} m`;
+}
+
 export function InspectionForm() {
   const router = useRouter();
   const [formState, setFormState] = useState<FormState>(defaultFormState);
+  const cutRange = deriveHouseCutRange(formState.reportBody.excavation.houseFootingCutDepthsM);
+  const isClayFamily = formState.reportBody.soil.primaryMaterialFamily !== 'sand' && formState.reportBody.soil.primaryMaterialFamily !== 'silt';
+  const isSandSiltFamily = formState.reportBody.soil.primaryMaterialFamily === 'sand' || formState.reportBody.soil.primaryMaterialFamily === 'silt';
 
   useEffect(() => {
     setFormState(loadDraftState());
@@ -139,9 +147,9 @@ export function InspectionForm() {
     <>
       <section className="panel">
         <p className="note">
-          The V1 form now edits one canonical draft model: visible top-block metadata, hidden archive metadata,
-          report-body inputs, and signoff inputs. House cuts are stored as corner values so generation can derive
-          min and max without keeping a second primary excavation shape.
+          The form stays intentionally plain, but it now captures the next V1 excavation and soil inputs that
+          actually flow into deterministic generation or visible review flags. The preview still owns all
+          letter assembly, while the form only edits the canonical grouped draft state.
         </p>
         <div className="button-row">
           <button type="button" onClick={submitDraft}>
@@ -214,6 +222,11 @@ export function InspectionForm() {
       <section className="section-card">
         <h2>Excavation Inputs</h2>
         <div className="field-grid">
+          <div className="field full">
+            <p className="note">
+              Derived cut helper: minimum {formatDerivedNumber(cutRange.minimumM)} | maximum {formatDerivedNumber(cutRange.maximumM)}
+            </p>
+          </div>
           <Field
             label="Front left cut (m)"
             type="number"
@@ -242,6 +255,97 @@ export function InspectionForm() {
             label="Rear walkout basement"
             checked={Boolean(formState.reportBody.excavation.walkoutBasement)}
             onChange={(checked) => updateExcavation('walkoutBasement', checked)}
+          />
+          <SelectField
+            label="Construction stage"
+            value={formState.reportBody.excavation.constructionStage ?? 'normal'}
+            onChange={(value) => updateExcavation('constructionStage', value as FormState['reportBody']['excavation']['constructionStage'])}
+            options={[
+              ['normal', 'Normal live excavation'],
+              ['nearly_complete', 'Nearly complete'],
+              ['framing', 'Framing stage']
+            ]}
+          />
+          <SelectField
+            label="As-constructed mode"
+            value={formState.reportBody.excavation.asConstructedMode ?? 'none'}
+            onChange={(value) => updateExcavation('asConstructedMode', value as FormState['reportBody']['excavation']['asConstructedMode'])}
+            options={[
+              ['none', 'None'],
+              ['poured_18in', 'Footing poured - 18 inch family'],
+              ['poured_20in', 'Footing poured - 20 inch family'],
+              ['poured_24in', 'Footing poured - 24 inch review family'],
+              ['walls_and_footing', 'Walls and footing already constructed']
+            ]}
+          />
+          <SelectField
+            label="Site history"
+            value={formState.reportBody.excavation.siteHistory ?? 'none'}
+            onChange={(value) => updateExcavation('siteHistory', value as FormState['reportBody']['excavation']['siteHistory'])}
+            options={[
+              ['none', 'No special history'],
+              ['infill', 'Infill lot'],
+              ['knockdown_rebuild', 'Knockdown / rebuild']
+            ]}
+          />
+          <CheckboxField
+            label="Oversized trench"
+            checked={Boolean(formState.reportBody.excavation.oversizedTrench)}
+            onChange={(checked) => updateExcavation('oversizedTrench', checked)}
+          />
+          {formState.reportBody.excavation.oversizedTrench ? (
+            <SelectField
+              label="Trench location"
+              value={formState.reportBody.excavation.trenchLocation ?? 'front'}
+              onChange={(value) => updateExcavation('trenchLocation', value as FormState['reportBody']['excavation']['trenchLocation'])}
+              options={[
+                ['front', 'Front'],
+                ['front_left', 'Front left'],
+                ['front_right', 'Front right']
+              ]}
+            />
+          ) : null}
+          <CheckboxField
+            label="Loose peeling material"
+            checked={Boolean(formState.reportBody.excavation.loosePeelingMaterial)}
+            onChange={(checked) => updateExcavation('loosePeelingMaterial', checked)}
+          />
+          <CheckboxField
+            label="Slough material"
+            checked={Boolean(formState.reportBody.excavation.sloughMaterial)}
+            onChange={(checked) => updateExcavation('sloughMaterial', checked)}
+          />
+          <Field
+            label="Frost depth (mm)"
+            type="number"
+            value={formState.reportBody.excavation.frostDepthMm?.toString() ?? ''}
+            onChange={(value) => updateExcavation('frostDepthMm', value ? Number(value) : undefined)}
+          />
+          <SelectField
+            label="Rain-softened mode"
+            value={formState.reportBody.excavation.rainSoftenedMode ?? 'none'}
+            onChange={(value) => updateExcavation('rainSoftenedMode', value as FormState['reportBody']['excavation']['rainSoftenedMode'])}
+            options={[
+              ['none', 'None'],
+              ['saturated_soft_surficial', 'Saturated soft surficial material'],
+              ['standing_water_rain_softened', 'Standing water after rain']
+            ]}
+          />
+          <CheckboxField
+            label="Free water in auger holes"
+            checked={Boolean(formState.reportBody.excavation.freeWaterInAugerHoles)}
+            onChange={(checked) => updateExcavation('freeWaterInAugerHoles', checked)}
+          />
+          <CheckboxField
+            label="Exposed electrical trench"
+            checked={Boolean(formState.reportBody.excavation.exposedElectricalTrench)}
+            onChange={(checked) => updateExcavation('exposedElectricalTrench', checked)}
+          />
+          <Field
+            label="Snow depth (mm)"
+            type="number"
+            value={formState.reportBody.excavation.snowDepthMm?.toString() ?? ''}
+            onChange={(value) => updateExcavation('snowDepthMm', value ? Number(value) : undefined)}
           />
         </div>
       </section>
@@ -284,11 +388,21 @@ export function InspectionForm() {
             ]}
           />
           <SelectField
-            label="Moisture"
+            label="Primary moisture"
             value={formState.reportBody.soil.moisture1}
             onChange={(value) => updateSoil('moisture1', value as SoilInputs['moisture1'])}
             options={[
               ['damp', 'Damp'],
+              ['moist', 'Moist'],
+              ['very_moist', 'Very moist'],
+              ['wet', 'Wet']
+            ]}
+          />
+          <OptionalSelectField
+            label="Secondary moisture"
+            value={formState.reportBody.soil.moisture2 ?? ''}
+            onChange={(value) => updateSoil('moisture2', value ? (value as SoilInputs['moisture2']) : undefined)}
+            options={[
               ['moist', 'Moist'],
               ['very_moist', 'Very moist'],
               ['wet', 'Wet']
@@ -309,11 +423,20 @@ export function InspectionForm() {
             ]}
           />
           <SelectField
-            label="Plasticity"
+            label="Primary plasticity"
             value={formState.reportBody.soil.plasticity1}
             onChange={(value) => updateSoil('plasticity1', value as SoilInputs['plasticity1'])}
             options={[
               ['low', 'Low'],
+              ['medium', 'Medium'],
+              ['high', 'High']
+            ]}
+          />
+          <OptionalSelectField
+            label="Secondary plasticity"
+            value={formState.reportBody.soil.plasticity2 ?? ''}
+            onChange={(value) => updateSoil('plasticity2', value ? (value as SoilInputs['plasticity2']) : undefined)}
+            options={[
               ['medium', 'Medium'],
               ['high', 'High']
             ]}
@@ -335,22 +458,46 @@ export function InspectionForm() {
               ['very_dense', 'Very dense']
             ]}
           />
-          <div className="field full">
-            <label htmlFor="trace-features">Trace features</label>
-            <select
-              id="trace-features"
-              multiple
-              value={formState.reportBody.soil.traceFeatures ?? []}
-              onChange={(event) => updateSoil('traceFeatures', selectedValues(event) as SoilInputs['traceFeatures'])}
-            >
-              <option value="oxides">Oxides</option>
-              <option value="white_precipitates">White precipitates</option>
-              <option value="coal">Coal</option>
-              <option value="gravel">Gravel</option>
-              <option value="organics">Organics</option>
-              <option value="rootlets">Rootlets</option>
-            </select>
-          </div>
+          {isClayFamily ? (
+            <MultiSelectField
+              label="Clay descriptors"
+              value={formState.reportBody.soil.clayDescriptors ?? []}
+              onChange={(values) => updateSoil('clayDescriptors', values as SoilInputs['clayDescriptors'])}
+              options={[
+                ['silty', 'Silty'],
+                ['very_silty', 'Very silty'],
+                ['sandy', 'Sandy'],
+                ['very_sandy', 'Very sandy']
+              ]}
+            />
+          ) : null}
+          {isSandSiltFamily ? (
+            <MultiSelectField
+              label="Sand / silt descriptors"
+              value={formState.reportBody.soil.sandSiltDescriptors ?? []}
+              onChange={(values) => updateSoil('sandSiltDescriptors', values as SoilInputs['sandSiltDescriptors'])}
+              options={[
+                ['coarse', 'Coarse'],
+                ['medium', 'Medium'],
+                ['fine', 'Fine'],
+                ['well_graded', 'Well graded'],
+                ['poorly_graded', 'Poorly graded']
+              ]}
+            />
+          ) : null}
+          <MultiSelectField
+            label="Trace features"
+            value={formState.reportBody.soil.traceFeatures ?? []}
+            onChange={(values) => updateSoil('traceFeatures', values as SoilInputs['traceFeatures'])}
+            options={[
+              ['oxides', 'Oxides'],
+              ['white_precipitates', 'White precipitates'],
+              ['coal', 'Coal'],
+              ['gravel', 'Gravel'],
+              ['organics', 'Organics'],
+              ['rootlets', 'Rootlets']
+            ]}
+          />
           <CheckboxField
             label="High plastic warning"
             checked={Boolean(formState.reportBody.soil.highPlasticWarning)}
@@ -393,12 +540,14 @@ export function InspectionForm() {
               ['higher_than_house', 'Garage above house excavation']
             ]}
           />
-          <Field
-            label="Garage offset above house (m)"
-            type="number"
-            value={formState.reportBody.garage.offsetAboveHouseM?.toString() ?? ''}
-            onChange={(value) => updateGarage('offsetAboveHouseM', value ? Number(value) : undefined)}
-          />
+          {formState.reportBody.garage.mode === 'higher_than_house' ? (
+            <Field
+              label="Garage offset above house (m)"
+              type="number"
+              value={formState.reportBody.garage.offsetAboveHouseM?.toString() ?? ''}
+              onChange={(value) => updateGarage('offsetAboveHouseM', value ? Number(value) : undefined)}
+            />
+          ) : null}
           <CheckboxField
             label="Garage slab organics advisory"
             checked={Boolean(formState.reportBody.garage.slabOrganics)}
@@ -409,17 +558,19 @@ export function InspectionForm() {
             checked={formState.reportBody.sulphate.includeParagraph}
             onChange={(checked) => updateSulphate('includeParagraph', checked)}
           />
-          <SelectField
-            label="Sulphate class"
-            value={formState.reportBody.sulphate.sulphateClass ?? 'negligible'}
-            onChange={(value) => updateSulphate('sulphateClass', value as FormState['reportBody']['sulphate']['sulphateClass'])}
-            options={[
-              ['negligible', 'Negligible'],
-              ['moderate', 'Moderate'],
-              ['severe', 'Severe'],
-              ['very_severe', 'Very severe']
-            ]}
-          />
+          {formState.reportBody.sulphate.includeParagraph ? (
+            <SelectField
+              label="Sulphate class"
+              value={formState.reportBody.sulphate.sulphateClass ?? 'negligible'}
+              onChange={(value) => updateSulphate('sulphateClass', value as FormState['reportBody']['sulphate']['sulphateClass'])}
+              options={[
+                ['negligible', 'Negligible'],
+                ['moderate', 'Moderate'],
+                ['severe', 'Severe'],
+                ['very_severe', 'Very severe']
+              ]}
+            />
+          ) : null}
           <CheckboxField
             label="Include winter construction paragraph"
             checked={formState.reportBody.winter.includeParagraph}
@@ -500,6 +651,61 @@ function SelectField({
     <div className="field">
       <label htmlFor={id}>{label}</label>
       <select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+        {options.map(([optionValue, labelText]) => (
+          <option key={optionValue} value={optionValue}>
+            {labelText}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function OptionalSelectField({
+  label,
+  onChange,
+  options,
+  value
+}: {
+  label: string;
+  onChange: (value: string) => void;
+  options: Array<[string, string]>;
+  value: string;
+}) {
+  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+  return (
+    <div className="field">
+      <label htmlFor={id}>{label}</label>
+      <select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">None</option>
+        {options.map(([optionValue, labelText]) => (
+          <option key={optionValue} value={optionValue}>
+            {labelText}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function MultiSelectField({
+  label,
+  onChange,
+  options,
+  value
+}: {
+  label: string;
+  onChange: (value: string[]) => void;
+  options: Array<[string, string]>;
+  value: string[];
+}) {
+  const id = label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+  return (
+    <div className="field full">
+      <label htmlFor={id}>{label}</label>
+      <select id={id} multiple value={value} onChange={(event) => onChange(selectedValues(event))}>
         {options.map(([optionValue, labelText]) => (
           <option key={optionValue} value={optionValue}>
             {labelText}
