@@ -36,8 +36,8 @@ describe('generateLetter', () => {
       'standard footing foundation for the attached garage'
     );
     expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P6')).toBeUndefined();
-    expect(result.filename).toContain('h38566');
-    expect(result.archivePath).toContain('H:/2026/Housing/VICTORY HOMES LTD.');
+    expect(result.filename).toBe('h38566vic.docx');
+    expect(result.archivePath).toBe('H:\\DATA 2026\\00 Housing 2026\\5478 - 1 VICTORY HOMES LTD.\\h38566vic.docx');
     expect(result.clauseRefsUsed.some((ref) => ref.id === 'CL_000')).toBe(true);
     expect(result.ruleRefsUsed.some((ref) => ref.id === 'DT_010')).toBe(true);
   });
@@ -131,7 +131,8 @@ describe('generateLetter', () => {
     const result = generateLetter(formState);
     const signoffText = result.paragraphs.find((paragraph) => paragraph.sectionId === 'SIGNOFF')?.text ?? '';
 
-    expect(signoffText).toContain('Signed by: Reviewing Engineer, P.Eng.');
+    expect(signoffText).toContain('Signed by: Scott MacFarlane, P.Eng.');
+    expect(signoffText).toContain('Member No.: [registry pending]');
     expect(signoffText).not.toContain('Reviewed by:');
   });
 

@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
-
+import { composeLetterDocument } from '@/lib/document/compose-letter-document';
 import { normalizeStoredDraftState } from '@/lib/draft/storage';
 import { buildDocx } from '@/lib/export/build-docx';
+import { generateLetter } from '@/lib/generation/generate-letter';
 
 export async function POST(request: Request) {
   let payload: unknown;
@@ -12,5 +12,19 @@ export async function POST(request: Request) {
     payload = undefined;
   }
 
-  return NextResponse.json(buildDocx(normalizeStoredDraftState(payload)), { status: 501 });
+  const formState = normalizeStoredDraftState(payload);
+  const generationResult = generateLetter(formState);
+  const documentModel = composeLetterDocument(formState, generationResult);
+  const docx = await buildDocx(documentModel);
+  const bodyBytes = Uint8Array.from(docx.buffer);
+  const blob = new Blob([bodyBytes], { type: docx.contentType });
+
+  return new Response(blob, {
+    status: 200,
+    headers: {
+      'Content-Type': docx.contentType,
+      'Content-Disposition': `attachment; filename="${docx.filename}"`,
+      'X-StrataCore-Archive-Path': docx.archivePath
+    }
+  });
 }

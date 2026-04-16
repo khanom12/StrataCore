@@ -1,4 +1,6 @@
 import { buildArchivePath, buildFilename } from '@/lib/export/build-filename';
+import { buildSignoffModel } from '@/lib/signoff/build-signoff-model';
+import { formatSignoffName } from '@/lib/signoff/engineer-registry';
 import { createReviewFlag } from '@/lib/review/flags';
 import {
   deriveFrontAndRearCutRanges,
@@ -111,10 +113,6 @@ function trenchLocationLabel(location?: FormState['reportBody']['excavation']['t
     default:
       return 'within the footing area';
   }
-}
-
-function normalizeForComparison(value?: string): string {
-  return value?.trim().toLowerCase() ?? '';
 }
 
 function applyConditionalAdequacy(text: string): string {
@@ -904,20 +902,18 @@ function buildClosingParagraph(): GeneratedParagraph {
 }
 
 function buildSignoffParagraph(formState: FormState): GeneratedParagraph {
-  const preparedBy = formState.signoff.preparedBy?.trim();
-  const signingEngineer = formState.signoff.signingEngineer.trim();
-  const signoffLines = ['J.R. Paine & Associates Ltd.', ''];
-
-  if (preparedBy && normalizeForComparison(preparedBy) !== normalizeForComparison(signingEngineer)) {
-    signoffLines.push(`Prepared by: ${preparedBy}`);
-    signoffLines.push(`Reviewed by: ${signingEngineer}`);
-  } else if (preparedBy) {
-    signoffLines.push(`Prepared and signed by: ${signingEngineer}`);
-  } else {
-    signoffLines.push(`Signed by: ${signingEngineer}`);
-  }
-
-  signoffLines.push('Permit to practice: [blank signatory area placeholder]');
+  const signoff = buildSignoffModel(formState.signoff);
+  const engineerName = formatSignoffName(signoff.signingEngineer.profile);
+  const signoffLines = [
+    signoff.organization,
+    '',
+    ...signoff.lines.map((line) => `${line.label}: ${line.value}`),
+    signoff.signingEngineer.profile.memberNumber ? `Member No.: ${signoff.signingEngineer.profile.memberNumber}` : 'Member No.: [registry pending]',
+    signoff.signingEngineer.profile.stampAssetKey
+      ? `[Engineer stamp placeholder: ${signoff.signingEngineer.profile.stampAssetKey}]`
+      : `[Engineer stamp placeholder for ${engineerName}]`,
+    signoff.permitToPractice.placeholderText
+  ];
 
   return createParagraph({
     id: 'signoff',

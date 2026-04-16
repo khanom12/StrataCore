@@ -1,25 +1,32 @@
 import { getCalendarYear } from '@/lib/domain/report-helpers';
 import type { FormState } from '@/types/domain';
 
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .replace(/-{2,}/g, '-');
+function normalizeHNumber(value: string): string {
+  const cleaned = value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+  if (!cleaned) {
+    return 'h00000';
+  }
+
+  return cleaned.startsWith('h') ? cleaned : `h${cleaned}`;
+}
+
+function buildClientCode(clientName: string): string {
+  const lettersOnly = clientName.replace(/[^a-z]/gi, '').toLowerCase();
+
+  return lettersOnly.slice(0, 3) || 'cli';
 }
 
 export function buildFilename(formState: FormState): string {
-  const fileNumber = slugify(formState.topBlock.fileNumber);
-  const address = slugify(formState.topBlock.streetAddress);
-  const hNumber = slugify(formState.archive.hNumber);
+  const hNumber = normalizeHNumber(formState.archive.hNumber);
+  const clientCode = buildClientCode(formState.topBlock.clientName);
 
-  return `${hNumber}_${fileNumber}_${address}_foundation-soil-inspection.docx`;
+  return `${hNumber}${clientCode}.docx`;
 }
 
 export function buildArchivePath(formState: FormState, filename: string): string {
   const year = getCalendarYear(formState.topBlock.letterDate);
-  const clientFolder = formState.topBlock.clientName.trim() || 'client-folder';
+  const clientFolder = `${formState.topBlock.fileNumber.trim() || 'file-number'} ${formState.topBlock.clientName.trim() || 'Client Name'}`.trim();
 
-  return `H:/${year}/Housing/${clientFolder}/${filename}`;
+  return `H:\\DATA ${year}\\00 Housing ${year}\\${clientFolder}\\${filename}`;
 }

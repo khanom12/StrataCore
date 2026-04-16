@@ -1,14 +1,15 @@
 # StrataCore prototype
 
-This repository now contains the first runnable local prototype for the StrataCore footing-inspection letter generator.
+This repository contains the current local-first prototype for the StrataCore footing-inspection letter generator.
 
 Current scope in this prototype:
 - Next.js + TypeScript desktop-first web app scaffold
 - plain landing page, form page, and preview page
 - pure TypeScript generation logic outside React
+- pure TypeScript document-composition layer between generation and preview/export
 - review flag handling for unresolved rule families
 - seed-backed clause/rule usage
-- DOCX export stub for the later template merge step
+- first-pass DOCX export built from the composed letter shell
 
 ## Run locally
 
@@ -18,38 +19,46 @@ Current scope in this prototype:
 npm install
 ```
 
-2. Start the prototype:
-
-```bash
-npm run dev
-```
-
-3. Open the app:
-
-`http://localhost:3000`
-
-4. Run the generator tests:
+2. Run the tests:
 
 ```bash
 npm test
 ```
 
+3. Run a production build check:
+
+```bash
+npm run build
+```
+
+4. Start the app:
+
+```bash
+npm run dev
+```
+
 ## Local smoke checklist
 
 1. Run `npm install`
-2. Run `npm run dev`
-3. Open `/`, `/form`, and `/preview` in the local Next.js URL shown in the terminal
-4. Check `/api/generate` with a POST request and expect normalized letter JSON
-5. Check `/api/export` with a POST request and expect the intentional `not_implemented` DOCX stub response
+2. Run `npm test`
+3. Run `npm run build`
+4. Run `npm run dev`
+5. Open `/form` and `/preview` in the local Next.js URL shown in the terminal
+6. Save a draft from `/form`, then confirm `/preview` shows export readiness, review flags/trace, and the composed draft pages
+7. Click `Download DOCX` on `/preview` and expect a real `.docx` file to download
+8. POST to `/api/generate` and expect normalized generation JSON
+9. POST to `/api/export` and expect a DOCX attachment response
 
 ## Workflow
 
 - `/` shows the seed-backed repo summary and routes into the workflow.
 - `/form` captures the current structured inputs.
-- `/preview` assembles the current draft, review flags, clause/rule trace, filename, and archive path.
+- `/preview` shows the analyst/debug panel, the composed draft shell, and the live DOCX download action.
+- `/api/export` returns a first-pass DOCX generated from the composed document model.
 
 ## Notes
 
 - The stable AUTO path is implemented first.
 - Review-sensitive branches remain visible through review flags instead of being silently decided in code.
-- DOCX export is intentionally stubbed so generation logic stays separate from export logic.
+- DOCX export is code-generated, not template-perfect yet.
+- Office address/footer branding and some engineer asset details still use typed placeholders until the exact assets are confirmed.

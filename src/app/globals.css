@@ -103,6 +103,36 @@ button.secondary {
   margin-bottom: 18px;
 }
 
+.page-shell {
+  border: 1px solid rgba(63, 51, 36, 0.14);
+  border-radius: 14px;
+  background: #fffdfa;
+  padding: 18px;
+}
+
+.page-shell + .page-shell {
+  margin-top: 16px;
+}
+
+.page-chrome {
+  border-bottom: 1px solid rgba(63, 51, 36, 0.12);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.footer-block {
+  border-bottom: none;
+  border-top: 1px solid rgba(63, 51, 36, 0.12);
+  margin-top: 18px;
+  margin-bottom: 0;
+  padding-top: 12px;
+  padding-bottom: 0;
+}
+
+.page-block + .page-block {
+  margin-top: 14px;
+}
+
 .section-card h2,
 .preview-card h2,
 .panel h2,
@@ -222,4 +252,3 @@ textarea {
     padding: 20px 16px 48px;
   }
 }
-

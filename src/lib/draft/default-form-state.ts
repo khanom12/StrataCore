@@ -72,7 +72,7 @@ export const defaultFormState: FormState = {
     }
   },
   signoff: {
-    preparedBy: 'Drafted by office staff',
-    signingEngineer: 'Reviewing Engineer, P.Eng.'
+    preparedBy: 'Doug Parth, E.I.T.',
+    signingEngineer: 'Scott MacFarlane, P.Eng.'
   }
 };

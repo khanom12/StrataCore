@@ -48,10 +48,9 @@ export default function HomePage() {
           <h2>Workflow Shape</h2>
           <p>1. Fill out metadata and the current stable P2-P7 inputs on the form page.</p>
           <p>2. Review the assembled letter preview, clause trace, filename, archive path, and warnings.</p>
-          <p>3. Use the export stub as the placeholder integration point for future DOCX template output.</p>
+          <p>3. Review the composed letter shell on the preview page and download the first-pass DOCX export.</p>
         </section>
       </div>
     </main>
   );
 }
-
