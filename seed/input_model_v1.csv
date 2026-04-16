@@ -1,0 +1,56 @@
+Input ID,Group,UI label / question,Source,Control type,Required state,Allowed values / format,Default / example,Feeds section(s),Decision table ref(s),Notes / validation
+IN_001,Metadata,Letter date,User/manual or imported booking metadata,Date picker,Required,Valid date,Date letter is written,META,DT_001,Not the same as inspection date.
+IN_002,Metadata,File number,Booking metadata / manual,Text,Required,"Client file format, e.g., 5478 - 1",5478 - 1,META,DT_001,Later phases can prepopulate this.
+IN_003,Metadata,Client name,Booking metadata / manual,Select or text,Required,Client master entry,VICTORY HOMES LTD.,META,DT_001,Should later map to mailing-address master data.
+IN_004,Metadata,Client mailing address,Booking metadata / manual,Multi-line text,Required,Address lines,"1665 - 91 Street SW / Edmonton, Alberta / T6X 0W8",META,DT_001,Generated as a formatted block above Re: line.
+IN_005,Metadata,Re: heading suffix,Manual special-case input,Short text,Optional,Blank or short suffix text,rear garage,META,DT_001,Default heading stays 'Foundation Soil Inspection'.
+IN_006,Metadata,Include legal description line?,Manual toggle / imported if available,Checkbox,Conditional,On / Off,On,META,DT_002,Usually on; may be turned off if lot/block/plan unavailable.
+IN_007,Metadata,Lot,Booking metadata / manual,Short text,Conditional,Up to 3 characters; letters and/or numbers,110,META,DT_002,No internal spaces expected.
+IN_008,Metadata,Block,Booking metadata / manual,Short text,Conditional,Up to 3 characters; letters and/or numbers,17,META,DT_002,No internal spaces expected.
+IN_009,Metadata,Plan,Booking metadata / manual,Short text,Conditional,Typically 3 chars + space + 4 chars; letters/numbers allowed,252 2250,META,DT_002,Should accept older non-spaced plan variants without error.
+IN_010,Metadata,Street address,Booking metadata / manual,Text,Required,Civic address,607 - 30 Street SW,META,DT_003,Always shown when known.
+IN_011,Metadata,Include client job number line?,Manual toggle,Checkbox,Optional,On / Off,Off,META,DT_003,Bedrock-style extra line.
+IN_012,Metadata,Client job number,Booking metadata / manual,Text,Conditional,Short project/job string,RST 0070,META,DT_003,Only visible when the toggle is on.
+IN_013,Metadata,Include subdivision?,Manual toggle / imported,Checkbox,Optional,On / Off,On,META,DT_004,Default on; allow omission when unknown.
+IN_014,Metadata,Subdivision,Booking metadata / manual,Text or select,Conditional,Subdivision name,Alces Subdivision,META,DT_004,Shown only when subdivision toggle is on.
+IN_015,Metadata,Municipality,Booking metadata / manual,Dropdown,Required,Edmonton; Sherwood Park; Spruce Grove; Leduc; Red Deer; etc.,"Edmonton, Alberta",META,DT_005,"Default Edmonton, but keep open list flexible."
+IN_016,Metadata,Hidden H number,System / office document number,Hidden text,Hidden,H-number string,h38566,SIG / Archive,"DT_006, DT_115",Do not show in visible body; use in filename/archive path.
+IN_017,P1,Inspection date,Field notes / manual,Date picker,Required,Valid date,"January 28, 2026",P1,"DT_010, DT_011",Used inside the intro paragraph.
+IN_018,P2,Minimum cut below adjacent ground surface (m),Field sketch / manual,Number,Conditional,Positive decimal in metres,1.7,P2,"DT_021, DT_022",Derived from the lowest corner cut when using standard cut wording.
+IN_019,P2,Maximum cut below adjacent ground surface (m),Field sketch / manual,Number,Conditional,Positive decimal in metres,1.9,P2,"DT_021, DT_022",Derived from the highest corner cut when using standard cut wording.
+IN_020,P2,Garage mode,Field observation / manual,Select-one,Required,None; Same elevation as house; Higher than house,None,P2 / P5,"DT_023, DT_024, DT_095","If garage is selected, P5 becomes mandatory/derived."
+IN_021,P2,Garage floor offset above house (m),Field observation / manual,Number,Conditional,Positive decimal in metres,0.7,P2,DT_024,Only used when garage is higher than house footing.
+IN_022,P2,Walkout basement?,Field checkbox / manual,Checkbox,Optional,Yes / No,No,P2,DT_022,"If yes, replaces the standard cut-range wording."
+IN_023,P2,Garden / garage suite mode?,Manual special-case toggle,Checkbox,Optional,Yes / No,No,P2 / P5,"DT_025, DT_093",Special structure path; no normal house P4 recommendation in this mode.
+IN_024,P2,As-constructed mode,Field observation / manual,Select-one,Optional,None; Previously poured footing 18in; Previously poured footing 20in; Previously poured footing 24in; Already poured walls and footing,None,P2 / P4 / P5,"DT_026-DT_029, DT_072-DT_074",Use when construction has already advanced before JRP inspection.
+IN_025,P2,Construction stage override,Field observation / manual,Select-one,Optional,Normal excavation; Nearly complete; Framing stage,Normal excavation,P2,"DT_041, DT_042",Alternative late-inspection context.
+IN_026,P2,Site history / infill mode,Field history / manual,Select-one,Optional,None; Infill; Knockdown/rebuild,None,P2 / P3,"DT_039, DT_040",Used when a previous residence existed and was removed.
+IN_027,P2,Over-sized service trench observed?,Field observation / manual,Checkbox,Optional,Yes / No,No,P2 / P4,"DT_031, DT_079","If yes, requires trench-location input and P4 reinforcement/remediation change."
+IN_028,P2,Service trench location,Field observation / manual,Select-one,Conditional,Front; Front left; Front right,Front,P2,DT_031,Only visible when trench issue is checked.
+IN_029,P2,Slough material observed?,Field observation / manual,Checkbox,Optional,Yes / No,No,P2 / P4,DT_030,Optional issue add-on.
+IN_030,P2,Loose / peeling material observed?,Field observation / manual,Checkbox,Optional,Yes / No,No,P2 / P4,"DT_032, DT_080",May drive thickened footing/remediation wording.
+IN_031,P2,Frost encountered depth (mm),Field observation / manual,Number,Optional,Positive integer in mm,150,P2 / P4,"DT_033, DT_078","If present, P4 wording flips to 'would then be considered'."
+IN_032,P2,Free water in auger holes?,Field observation / manual,Checkbox,Optional,Yes / No,No,P2 / P4,"DT_034, DT_081",Major trigger for upgraded drainage wording.
+IN_033,P2,Water depth below footing / auger-hole context,Field observation / manual,Number or note,Conditional,Decimal metres or short note,0.9 m below footing elevation,P2 / P4,"DT_034, DT_081",Only shown if water issue selected.
+IN_034,P2,Rain-softened / saturated material mode,Field observation / manual,Select-one,Optional,None; Saturated/soft surficial material; Standing water / rain-softened excavation,None,P2 / P4,"DT_035, DT_082",Complex observation family; keep wording reviewable.
+IN_035,P2,Snow cover depth (mm),Field observation / manual,Number,Optional,Positive integer in mm,100,P2 / P4,"DT_036, DT_083",Snow/softened material removal requirement.
+IN_036,P2,Exposed electrical service trench causing water?,Field observation / manual,Checkbox,Optional,Yes / No,No,P2 / P4,"DT_037, DT_084",Special water-source clause.
+IN_037,P2,Ground heating system operating?,Field observation / manual,Checkbox,Optional,Yes / No,No,P2 / P3,DT_038,Special winter/frost-removal observation clause.
+IN_038,P3,Soil layering mode,Structured selection,Select-one,Required,Single layer; Engineered fill over native,Single layer,P3,"DT_050, DT_051",Drives whether the paragraph is composed as one layer or two.
+IN_039,P3,Primary soil origin,Structured selection,Select-one,Required,Native; Engineered fill by JRP; Engineered fill by JRP + others; Engineered fill by others; Engineered fill unknown,Native,P3,DT_052-DT_056,Uncontrolled fill is intentionally excluded from V1.
+IN_040,P3,Primary material family,Structured selection,Select-one,Required,Clay; Clay till; Sand; Silt; Clayey sand; Clayey silt,Clay till,P3,DT_057,Drives which descriptor family becomes available.
+IN_041,P3,Clay descriptors: siltiness / sandiness,Structured selection,Multi-select with rules,Conditional,Silty; Very silty; Sandy; Very sandy,Silty + Sandy,P3,DT_057,Used mainly when material family is clay or clay till.
+IN_042,P3,Sand / silt descriptors,Structured selection,Select set,Conditional,Coarse; Medium; Fine; Well graded; Poorly graded,Fine,P3,DT_057,Only relevant when material family is sand or silt family.
+IN_043,P3,Moisture band - first step,Structured selection,Select-one,Required,Damp; Moist; Very moist; Wet,Moist,P3,DT_058,First point on a left-to-right linear scale.
+IN_044,P3,Moisture band - second step,Structured selection,Select-one,Conditional,Next adjacent step only,Very moist,P3,DT_058,Only allow one adjacent second choice; no skipping.
+IN_045,P3,Colour,Structured selection,Select-one,Required,Brown; Grey; Brown and grey; Brown and dark grey; Dark grey; Black; Reddish brown,Brown and grey,P3,DT_059,Keep palette limited to what Huzaifa named.
+IN_046,P3,Plasticity band - first step,Structured selection,Select-one,Required,Low; Medium; High,Medium,P3,DT_060,Linear scale; no low-to-high jump.
+IN_047,P3,Plasticity band - second step,Structured selection,Select-one,Conditional,Adjacent second step only,High,P3,DT_060,Allows low-to-medium or medium-to-high when needed.
+IN_048,P3,Consistency / density,Structured selection,Select-one,Required,Clay family: Soft/Firm/Stiff/Very stiff/Hard; Sand/silt family: Very loose/Loose/Compact/Dense/Very dense,Very stiff,P3,DT_061,Available values depend on material family.
+IN_049,P3,Trace features,Structured selection,Multi-select,Optional,Oxides; White precipitates; Coal; Gravel; Organics; Rootlets,Oxides + Coal + Gravel,P3,DT_062,Oxides and white precipitates are common defaults.
+IN_050,P3,High plastic warning?,Derived or manual confirm,Checkbox,Conditional,Yes / No,No,P3,DT_063,"Can be derived from plasticity where appropriate, but keep visible for review."
+IN_051,P5,Garage slab organics present?,Field observation / manual,Checkbox,Optional,Yes / No,No,P5 / later advisory,DT_094,Special garage-only advisory path.
+IN_052,P6,Include sulphate paragraph?,Lab result / manual,Checkbox,Optional,Yes / No,No,P6,DT_100-DT_103,Only appears when the client/test requires it.
+IN_053,P6,Sulphate class,Lab result / manual,Select-one,Conditional,Negligible; Moderate; Severe; Very severe,Negligible,P6,DT_100-DT_103,Exactly one value when sulphate is included.
+IN_054,Signoff,Prepared by,User profile / manual,Select-one,Optional,Author/profile list,"Doug Parth, E.I.T.",SIG,DT_111,Prepared-by block can collapse when author is also the signing engineer.
+IN_055,Signoff,Signing engineer,User profile / manual,Select-one,Required,Engineer/stamp asset list,"Scott MacFarlane, P.Eng.",SIG,DT_112-DT_114,"Selecting the signing engineer should pull name, designation, member number, and stamp asset together."

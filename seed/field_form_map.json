@@ -1,0 +1,152 @@
+[
+  {
+    "Map ID": "FF_001",
+    "Field-note sheet area": "Top metadata block (ID / client / address / insp type / due time)",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "Preprinted office metadata is visible at the top of both sample field-note sheets.",
+    "Candidate digital input(s)": "Inspector_name; inspection_id; file_number; client_name; jrp_job_number; client_job_number; address; lot_block_plan; inspection_type; eng_fill; time_due",
+    "Feeds report section(s)": "META",
+    "V1 Use": "NOW",
+    "Notes": "Supports the future prepopulation story. These are office/booking-system inputs, not handwritten field observations."
+  },
+  {
+    "Map ID": "FF_002",
+    "Field-note sheet area": "Office comments / intake comment line",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "Sample printed comments mention sulphate, spread footing capacity, and design notes before handwritten observations begin.",
+    "Candidate digital input(s)": "office_comments",
+    "Feeds report section(s)": "META / P2 context",
+    "V1 Use": "NOW",
+    "Notes": "Useful as carried-forward context or alert banner, not as primary technical logic."
+  },
+  {
+    "Map ID": "FF_003",
+    "Field-note sheet area": "Soil conditions handwritten area",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "Sample note includes handwritten soil shorthand like clay / silty / moist / brown-grey / high plastic.",
+    "Candidate digital input(s)": "soil_layering_mode; soil_origin; material_family; moisture; colour; plasticity; traces; high_plastic; and more that should be fully captured\u2026",
+    "Feeds report section(s)": "P3",
+    "V1 Use": "NOW",
+    "Notes": "This is one of the most important future data-capture areas for the UI."
+  },
+  {
+    "Map ID": "FF_004",
+    "Field-note sheet area": "Cut/fill sketch grid with corner notes",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "The sketch and handwritten cut/fill numbers are the source for min/max cut values and often reveal garage/walkout context.",
+    "Candidate digital input(s)": "cut_frontleft_m; cut_frontright_m; cut_backleft_m; cut_backright_m; garage_mode; walkout",
+    "Feeds report section(s)": "P2",
+    "V1 Use": "NOW",
+    "Notes": "Current manual practice uses the lowest and highest cuts recorded around the sketch to inform the FSI letter from the four captured values."
+  },
+  {
+    "Map ID": "FF_005",
+    "Field-note sheet area": "Ingressing water yes/no",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "The form explicitly asks whether ingressing water is present.",
+    "Candidate digital input(s)": "free_water_in_augers; drainage_issue_flag",
+    "Feeds report section(s)": "P2 / P4",
+    "V1 Use": "NOW",
+    "Notes": "Strong candidate for a clean checkbox in the future UI."
+  },
+  {
+    "Map ID": "FF_006",
+    "Field-note sheet area": "Recommendations handwritten shortcut area",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "Short handwritten recommendation note appears below ingressing water.",
+    "Candidate digital input(s)": "recommendation_crosscheck_note",
+    "Feeds report section(s)": "P4 / P5",
+    "V1 Use": "LATER",
+    "Notes": "Useful as a QA cross-check, but the generator should derive recommendations from structured conditions instead of relying on free text."
+  },
+  {
+    "Map ID": "FF_007",
+    "Field-note sheet area": "House details: Attached Garage checkbox",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "The printed form includes an Attached Garage checkbox.",
+    "Candidate digital input(s)": "garage_mode",
+    "Feeds report section(s)": "P2 / P5",
+    "V1 Use": "NOW",
+    "Notes": "Directly maps to whether garage excavation and garage recommendation logic should appear."
+  },
+  {
+    "Map ID": "FF_008",
+    "Field-note sheet area": "House details: Walkout checkbox",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "The printed form includes a Walkout checkbox.",
+    "Candidate digital input(s)": "walkout",
+    "Feeds report section(s)": "P2",
+    "V1 Use": "NOW",
+    "Notes": "Useful because walkout replaces the standard cut wording."
+  },
+  {
+    "Map ID": "FF_009",
+    "Field-note sheet area": "COMMENTS box under the sketch",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "Sample handwritten comments include client job shorthand and 'No garage'.",
+    "Candidate digital input(s)": "client_job_number; garage_mode; special_site_notes",
+    "Feeds report section(s)": "META / P2",
+    "V1 Use": "NOW",
+    "Notes": "In the current paper process, this box often carries the clues that drive garage/walkout selection."
+  },
+  {
+    "Map ID": "FF_010",
+    "Field-note sheet area": "Front-left / front-right / back-left / back-right note lines",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "Printed location lines sit under the grid for corner-specific notes.",
+    "Candidate digital input(s)": "corner_specific_notes\u2026check with ff_004",
+    "Feeds report section(s)": "P2",
+    "V1 Use": "NOW",
+    "Notes": "The min and max values captured here from the 4 corner values will be utilized in the FSI letter build."
+  },
+  {
+    "Map ID": "FF_011",
+    "Field-note sheet area": "Pocket pens / contact method checkboxes",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "Printed operational tracking fields appear below recommendations.",
+    "Candidate digital input(s)": "operational_contact_tracking: text, voice mail, talked to contact, gave recommendations to cribber",
+    "Feeds report section(s)": "None",
+    "V1 Use": "LATER",
+    "Notes": "Operational workflow only; not part of the V1 letter generator."
+  },
+  {
+    "Map ID": "FF_012",
+    "Field-note sheet area": "Site hazard assessment table",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "Hazard rank, hazards, and controls are filled by hand on the sample sheets.",
+    "Candidate digital input(s)": "site_hazard_assessment: rank, existing or potential hazard description, hazard control",
+    "Feeds report section(s)": "None",
+    "V1 Use": "LATER",
+    "Notes": "Relevant to field workflow digitization, not to V1 report assembly."
+  },
+  {
+    "Map ID": "FF_013",
+    "Field-note sheet area": "Emergency preparedness block",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "First aid, emergency number, first aid personnel, muster point, and emergency medical facility checkboxes appear at bottom left.",
+    "Candidate digital input(s)": "emergency_preparedness",
+    "Feeds report section(s)": "None",
+    "V1 Use": "LATER",
+    "Notes": "Keep for future inspection-app scope; not required for report generation."
+  },
+  {
+    "Map ID": "FF_014",
+    "Field-note sheet area": "PPE / print name / sign / review lines",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "PPE checkboxes (hard hat, safety boots, safety vests, other) and Eng/Tech,Other,Review print-name/sign lines appear at bottom right.",
+    "Candidate digital input(s)": "field_signature_workflow",
+    "Feeds report section(s)": "None",
+    "V1 Use": "LATER",
+    "Notes": "Important for digitized field workflow later, but outside the report-writer MVP."
+  },
+  {
+    "Map ID": "FF_015",
+    "Field-note sheet area": "Overall paper form behavior",
+    "Observed on provided sheets": "Yes",
+    "Example / interpretation from sample field notes": "Top block is prefilled; lower technical fields are handwritten; safety/operational sections are always present on paper.",
+    "Candidate digital input(s)": "mixed_source_capture",
+    "Feeds report section(s)": "META + P2 + P3",
+    "V1 Use": "NOW",
+    "Notes": "Confirms that the future UI should separate auto-filled metadata from engineer-entered observations."
+  }
+]

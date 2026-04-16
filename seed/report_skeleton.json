@@ -1,0 +1,252 @@
+[
+  {
+    "Order": 1,
+    "Section ID": "FMT_01",
+    "Section Name": "First-page header / logo branding",
+    "Fixed vs Variable": "Fixed",
+    "Description": "Company logo, company name, and first-page branding/header. This is the first-page-only format that Huzaifa described as the title-block / cover-page layout.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Keep as template-driven. Only page 1 uses the full logo/header treatment."
+  },
+  {
+    "Order": 2,
+    "Section ID": "FMT_02",
+    "Section Name": "First-page footer",
+    "Fixed vs Variable": "Fixed",
+    "Description": "Office list and phone-number footer used on the first page.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Separate from later-page footer because page 2+ follows a different format."
+  },
+  {
+    "Order": 3,
+    "Section ID": "META_01",
+    "Section Name": "Office address block",
+    "Fixed vs Variable": "Fixed in V1",
+    "Description": "Top-right office address block. Transcript says focus Edmonton first; other offices can be added later without changing overall layout.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Use Edmonton office block for the first V1 template."
+  },
+  {
+    "Order": 4,
+    "Section ID": "META_02",
+    "Section Name": "Letter date",
+    "Fixed vs Variable": "Variable",
+    "Description": "Date the letter is written, not necessarily the same as inspection date.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "User-selected date field."
+  },
+  {
+    "Order": 5,
+    "Section ID": "META_03",
+    "Section Name": "File number",
+    "Fixed vs Variable": "Variable",
+    "Description": "File No. line under the letter date.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Pulled from inspection metadata in later phases; manually entered/selected in first generator."
+  },
+  {
+    "Order": 6,
+    "Section ID": "META_04",
+    "Section Name": "Client name and mailing address",
+    "Fixed vs Variable": "Variable",
+    "Description": "Client name (bold) plus mailing-address block immediately above the Re: section.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Client master list later; manual/dropdown in early V1."
+  },
+  {
+    "Order": 7,
+    "Section ID": "META_05",
+    "Section Name": "Re: heading",
+    "Fixed vs Variable": "Fixed + Variable",
+    "Description": "Base heading is \u201cFoundation Soil Inspection\u201d; transcript allows an optional dash suffix for rarer cases.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Default to base heading; optional manual suffix field."
+  },
+  {
+    "Order": 8,
+    "Section ID": "META_06",
+    "Section Name": "Legal description line",
+    "Fixed vs Variable": "Variable",
+    "Description": "Lot / Block / Plan line for the inspected property.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Lot and block may be short numeric values; plan may be letters/numbers. Option for letters/number available for all (lot, block, plan). Lot and block can be up to 3 characters with letters or/and numbers. The plan is 3 charcters followed by a space then 4 more characters (mixture of letters and numbers)."
+  },
+  {
+    "Order": 9,
+    "Section ID": "META_07",
+    "Section Name": "Street address line",
+    "Fixed vs Variable": "Fixed",
+    "Description": "Street/civic address of the inspected site.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": null
+  },
+  {
+    "Order": 10,
+    "Section ID": "META_08",
+    "Section Name": "Optional client job-number line",
+    "Fixed vs Variable": "Variable / optional",
+    "Description": "Bedrock-style extra job-number line below street address.",
+    "Source Evidence": "Transcript",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Default off. Exposed only when needed for clients such as Bedrock."
+  },
+  {
+    "Order": 11,
+    "Section ID": "META_09",
+    "Section Name": "Subdivision line",
+    "Fixed vs Variable": "Variable / optional",
+    "Description": "Subdivision name, usually present.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Default on; allow omission when unknown."
+  },
+  {
+    "Order": 12,
+    "Section ID": "META_10",
+    "Section Name": "Municipality line",
+    "Fixed vs Variable": "Variable",
+    "Description": "City / municipality line, Edmonton by default but selectable for other municipalities.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Dropdown candidate: Edmonton, Sherwood Park, Spruce Grove, etc."
+  },
+  {
+    "Order": 13,
+    "Section ID": "P1",
+    "Section Name": "Intro paragraph",
+    "Fixed vs Variable": "Fixed backbone + replacement mode",
+    "Description": "Default intro paragraph describing the purpose of inspection and ABC assumption. Normal path inserts inspection date; special follow-up mode can replace the whole intro.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Normal V1 uses the standard intro. Frost follow-up remains a special replacement path, not a second paragraph."
+  },
+  {
+    "Order": 14,
+    "Section ID": "P2",
+    "Section Name": "Excavation conditions paragraph",
+    "Fixed vs Variable": "Fixed backbone + variable inserts",
+    "Description": "Starts with a fixed excavation sentence, then cut range, then optional excavation add-ons such as garage same elevation, garage higher than house, walkout wording, already-poured footing wording, and observed site issues, over excavated trench, frost issues, organic fill or engineered fill by others comments, etc.",
+    "Source Evidence": "Transcript + example letter + clause master",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "P2 is the main logic driver. Order matters: base excavation -> cut/walkout wording -> garage append (if any) -> other observed issue clauses."
+  },
+  {
+    "Order": 15,
+    "Section ID": "P3",
+    "Section Name": "Soil conditions paragraph",
+    "Fixed vs Variable": "Variable + derived add-ons",
+    "Description": "Soil description paragraph built from structured descriptors: origin (main: native or engineered fill or combination of both), material type (clay (either silty, sandy, or both), sand (course grain, medium grain, fine grain, loose compaction, very loose, compact, dense, very dense compaction, well graded, poorly graded), silt (same compaction options as sand and very fine grain), very sandy, very silty, silty to very silty, sandy to very sandy, or select multiple), moisture (damp, moist, very moist, wet, able to pick 2 with scaling (going left to right on linear scale without skipping)), colour (brown, grey, brown and grey, brown and dark grey, dark grey, black, reddish-brown), plasticity (low plastic, medium plastic, and high plastic or again on a linear scale (low to med or med to high)), density/consistency, traces, engineered-fill provenance, and high-plastic warning when triggered.",
+    "Source Evidence": "Transcript + example letter + clause master",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "P3 should be structured from controlled selections, not free text. 'Native deposit' wording only appears when the soil is actually native."
+  },
+  {
+    "Order": 16,
+    "Section ID": "P4",
+    "Section Name": "Primary footing recommendation paragraph",
+    "Fixed vs Variable": "Derived",
+    "Description": "Main house-footing recommendation. Can resolve to standard, modified, or as-constructed adequacy wording, and may prepend conditional language tied to excavation/soil issues.",
+    "Source Evidence": "Transcript + example letter + clause master",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Paragraph 4 is driven by selections in P2 and P3; spread-footing sentence lives here as an add-on."
+  },
+  {
+    "Order": 17,
+    "Section ID": "P5",
+    "Section Name": "Garage recommendation paragraph",
+    "Fixed vs Variable": "Derived",
+    "Description": "Separate garage recommendation paragraph added only when garage conditions apply.",
+    "Source Evidence": "Transcript + clause master",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "If P2 says a garage exists, P5 must appear. Garden-suite mode is special and uses P5 without the normal house P4 path."
+  },
+  {
+    "Order": 18,
+    "Section ID": "P6",
+    "Section Name": "Sulphate paragraph",
+    "Fixed vs Variable": "Optional",
+    "Description": "One-of-four sulphate-result paragraph: negligible, moderate, severe, or very severe.",
+    "Source Evidence": "Transcript + clause master",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Huzaifa describes this as a simple add-on paragraph."
+  },
+  {
+    "Order": 19,
+    "Section ID": "P7",
+    "Section Name": "Winter construction paragraph",
+    "Fixed vs Variable": "Fixed",
+    "Description": "Standard winter-construction paragraph appended after the technical recommendation paragraphs.",
+    "Source Evidence": "Transcript + example letter + clause master",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Keep always-on in V1. If later evidence proves otherwise, this can be relaxed in a later version."
+  },
+  {
+    "Order": 20,
+    "Section ID": "P8",
+    "Section Name": "Closing paragraph",
+    "Fixed vs Variable": "Fixed",
+    "Description": "Standard closing: \u201cWe trust this information is considered satisfactory...\u201d",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": null
+  },
+  {
+    "Order": 21,
+    "Section ID": "SIG_01",
+    "Section Name": "Prepared-by signoff",
+    "Fixed vs Variable": "Optional + Variable",
+    "Description": "Prepared-by name and designation, with blank signing space above.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Prepared-by block is optional. When the author is already the signing engineer, the standard engineer block can absorb the author/signer identity."
+  },
+  {
+    "Order": 22,
+    "Section ID": "SIG_02",
+    "Section Name": "Reviewed-by engineer / stamp area",
+    "Fixed vs Variable": "Required engineer block + Variable asset",
+    "Description": "Reviewer name, stamp image, and member number area.",
+    "Source Evidence": "Transcript + example letter + clause master",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Standard V1 output should always include the engineer signoff/stamp block. Image asset, name, designation, and member number are variable."
+  },
+  {
+    "Order": 23,
+    "Section ID": "SIG_03",
+    "Section Name": "Permit-to-practice signatory area",
+    "Fixed vs Variable": "Fixed blank asset",
+    "Description": "Blank permit-to-practice signing area kept in the fixed V1 output. It is not tied to the selected engineer stamp.",
+    "Source Evidence": "Transcript",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Second call says this should be a single fixed blank permit-to-practice asset that can be signed by an eligible director/signatory."
+  },
+  {
+    "Order": 24,
+    "Section ID": "SIG_04",
+    "Section Name": "Archive path / file path",
+    "Fixed vs Variable": "Derived",
+    "Description": "H-drive path printed at the bottom for filing/reference.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Derived from year + housing folder + client folder + generated filename. Hidden H number appears here, not in visible body text."
+  },
+  {
+    "Order": 25,
+    "Section ID": "FMT_03",
+    "Section Name": "Later-page header / footer format",
+    "Fixed vs Variable": "Fixed",
+    "Description": "Page 2+ layout uses the later-page header/footer style, not the page-1 title-block style.",
+    "Source Evidence": "Transcript + example letter",
+    "V1 Status": "IN",
+    "Notes / Open Questions": "Template must use a different first page."
+  }
+]

@@ -1,0 +1,178 @@
+[
+  {
+    "Scope ID": "SC_001",
+    "Family / Capability": "Standard FSI metadata + document shell",
+    "V1 Support": "AUTO",
+    "Why locked this way": "Core V1 target is the normal two-page-plus letter path with the existing top block, fixed branding, hidden H number, archive path, and Word export.",
+    "Key Clause IDs / Inputs": "Report_Skeleton FMT_01-FMT_03; META_01-META_10; DT_001-DT_008",
+    "Build Notes / UI Notes": "Treat this as the default user path. Everything else branches from here."
+  },
+  {
+    "Scope ID": "SC_002",
+    "Family / Capability": "Standard intro paragraph (P1)",
+    "V1 Support": "AUTO",
+    "Why locked this way": "Normal intro is stable and only needs the inspection date inserted.",
+    "Key Clause IDs / Inputs": "CL_000; DT_010",
+    "Build Notes / UI Notes": "This should be the default P1 every time unless a replacement mode is selected."
+  },
+  {
+    "Scope ID": "SC_003",
+    "Family / Capability": "Special intro replacement: frost follow-up inspection",
+    "V1 Support": "REVIEW",
+    "Why locked this way": "Huzaifa identified this as a real special mode that replaces the normal intro, but it is not part of the most common path.",
+    "Key Clause IDs / Inputs": "CL_044; DT_011",
+    "Build Notes / UI Notes": "Keep in V1 scope, but surface it as a clearly labeled special-case path."
+  },
+  {
+    "Scope ID": "SC_004",
+    "Family / Capability": "Administrative correction / letter rewrite",
+    "V1 Support": "DEFERRED TO V2",
+    "Why locked this way": "Huzaifa explicitly said rare correction letters can be done brute-force by hand for now.",
+    "Key Clause IDs / Inputs": "CL_001; DT_012",
+    "Build Notes / UI Notes": "Do not include in the first generator UI."
+  },
+  {
+    "Scope ID": "SC_005",
+    "Family / Capability": "P2 core excavation paragraph: standard cuts, garage same elevation, garage higher than house, walkout",
+    "V1 Support": "AUTO",
+    "Why locked this way": "These are core day-to-day branches Huzaifa explained in detail and they directly drive later recommendations.",
+    "Key Clause IDs / Inputs": "CL_018, CL_021, CL_022; DT_020-DT_024",
+    "Build Notes / UI Notes": "This is a high-priority UX area: clear, guided choices with minimal free text."
+  },
+  {
+    "Scope ID": "SC_006",
+    "Family / Capability": "P2 special structure path: garden / garage suite",
+    "V1 Support": "REVIEW",
+    "Why locked this way": "Not explicitly deferred; Huzaifa clarified it is a special P5-only style path, not a normal house footing recommendation path.",
+    "Key Clause IDs / Inputs": "CL_023; DT_025, DT_093",
+    "Build Notes / UI Notes": "Include in V1 as a special/manual-review path."
+  },
+  {
+    "Scope ID": "SC_007",
+    "Family / Capability": "P2 as-constructed / already-built variants",
+    "V1 Support": "REVIEW",
+    "Why locked this way": "Huzaifa described these as real cases. 18-inch and 20-inch are understandable; 24-inch still needs review detail.",
+    "Key Clause IDs / Inputs": "CL_019, CL_047; DT_026-DT_029, DT_072-DT_074",
+    "Build Notes / UI Notes": "Include in V1, but keep 24-inch branch clearly flagged."
+  },
+  {
+    "Scope ID": "SC_008",
+    "Family / Capability": "P2 observed issue branches: over-sized trench, frost, loose/peeling, slough, free water, rain-softened, snow, exposed electrical trench, ground heating",
+    "V1 Support": "AUTO",
+    "Why locked this way": "These are important because they trigger downstream recommendation changes.",
+    "Key Clause IDs / Inputs": "CL_010, CL_013, CL_024, CL_025, CL_026, CL_036, CL_038, CL_039, CL_042; DT_030-DT_038",
+    "Build Notes / UI Notes": "UI should allow multiple issue selections and show downstream effects."
+  },
+  {
+    "Scope ID": "SC_009",
+    "Family / Capability": "P2 site history / stage branches: infill, knockdown/rebuild, construction nearly complete, framing stage",
+    "V1 Support": "AUTO",
+    "Why locked this way": "These are real, named source clauses and do not conflict with the normal letter backbone.",
+    "Key Clause IDs / Inputs": "CL_006, CL_027, CL_032, CL_033; DT_039-DT_042",
+    "Build Notes / UI Notes": "Best modeled as optional add-on/context selections."
+  },
+  {
+    "Scope ID": "SC_010",
+    "Family / Capability": "P3 native soil descriptions",
+    "V1 Support": "AUTO",
+    "Why locked this way": "Core day-to-day path for normal native lots.",
+    "Key Clause IDs / Inputs": "DT_050, DT_052, DT_057-DT_063",
+    "Build Notes / UI Notes": "Must preserve exact wording discipline, especially 'native deposit'."
+  },
+  {
+    "Scope ID": "SC_011",
+    "Family / Capability": "P3 engineered-fill and layered fill-over-native descriptions",
+    "V1 Support": "AUTO",
+    "Why locked this way": "Example issued letter proves this is a normal production case.",
+    "Key Clause IDs / Inputs": "CL_007, CL_008, CL_017; DT_051-DT_055",
+    "Build Notes / UI Notes": "Key for later import from the booking system / engineered-fill flag."
+  },
+  {
+    "Scope ID": "SC_012",
+    "Family / Capability": "P3 engineered-fill by others / unknown provenance / subdivision-specific others clauses",
+    "V1 Support": "REVIEW",
+    "Why locked this way": "Not explicitly deferred, but these need review-sensitive wording and sometimes outside documentation.",
+    "Key Clause IDs / Inputs": "CL_029, CL_030, CL_037; DT_055-DT_056",
+    "Build Notes / UI Notes": "Keep in V1 scope as flagged/manual-review branches."
+  },
+  {
+    "Scope ID": "SC_013",
+    "Family / Capability": "P3 high-plastic warning, trace features, descriptor scales",
+    "V1 Support": "AUTO",
+    "Why locked this way": "Directly described by Huzaifa and central to structured input design.",
+    "Key Clause IDs / Inputs": "CL_043; DT_057-DT_063",
+    "Build Notes / UI Notes": "This sheet will strongly shape the later control design."
+  },
+  {
+    "Scope ID": "SC_014",
+    "Family / Capability": "P4 main footing recommendation: standard / modified / as-constructed",
+    "V1 Support": "AUTO",
+    "Why locked this way": "Main recommendation family is stable; only some special triggers still need review detail.",
+    "Key Clause IDs / Inputs": "CL_002, CL_003, CL_019, CL_047; DT_070-DT_074",
+    "Build Notes / UI Notes": "Make P4 mostly derived rather than hand-authored."
+  },
+  {
+    "Scope ID": "SC_015",
+    "Family / Capability": "P4 add-ons: spread footings, reinforcement, thickened footing, drainage, remediation language",
+    "V1 Support": "REVIEW",
+    "Why locked this way": "Core family is in scope, but spread-footing value conflicts and some remediation packages need confirmation.",
+    "Key Clause IDs / Inputs": "CL_004, CL_005, CL_020, CL_024, CL_025, CL_026, CL_034, CL_035, CL_036, CL_038, CL_039, CL_045, CL_046; DT_075-DT_085",
+    "Build Notes / UI Notes": "Build now, but highlight unresolved clause families for Huzaifa."
+  },
+  {
+    "Scope ID": "SC_016",
+    "Family / Capability": "P5 garage recommendation family",
+    "V1 Support": "AUTO",
+    "Why locked this way": "Garage recommendation is a real standard branch and is fully derived from P2 garage presence plus P4 footing basis.",
+    "Key Clause IDs / Inputs": "CL_014, CL_015; DT_090, DT_091, DT_095",
+    "Build Notes / UI Notes": "Do not allow the UI to suppress garage paragraph if P2 says garage exists."
+  },
+  {
+    "Scope ID": "SC_017",
+    "Family / Capability": "P5 garage special advisories: garage slab organics, garden suite recommendation",
+    "V1 Support": "REVIEW",
+    "Why locked this way": "Real clauses, but less common and more special-case than the standard attached-garage path.",
+    "Key Clause IDs / Inputs": "CL_016, CL_023; DT_093-DT_094",
+    "Build Notes / UI Notes": "Keep visible as special/manual-review branches."
+  },
+  {
+    "Scope ID": "SC_018",
+    "Family / Capability": "P6 sulphate result paragraph",
+    "V1 Support": "AUTO",
+    "Why locked this way": "Huzaifa described this as a clean one-of-four add-on with no extra branching.",
+    "Key Clause IDs / Inputs": "CL_048-CL_051; DT_100-DT_103",
+    "Build Notes / UI Notes": "A later lab-result screen/control can handle this cleanly."
+  },
+  {
+    "Scope ID": "SC_019",
+    "Family / Capability": "P7 winter paragraph",
+    "V1 Support": "AUTO",
+    "Why locked this way": "Huzaifa said it is always there; keep it in the standard V1 path.",
+    "Key Clause IDs / Inputs": "CL_011; DT_110",
+    "Build Notes / UI Notes": "No UI control needed in the first prototype."
+  },
+  {
+    "Scope ID": "SC_020",
+    "Family / Capability": "Closing + signoff + permit-to-practice + archive path",
+    "V1 Support": "AUTO",
+    "Why locked this way": "These are required for the current office workflow even though some authoring nuances remain.",
+    "Key Clause IDs / Inputs": "Report_Skeleton P8 + SIG rows; DT_111-DT_115",
+    "Build Notes / UI Notes": "Output should remain Word-first so the office can print, sign, and file."
+  },
+  {
+    "Scope ID": "SC_021",
+    "Family / Capability": "Pile-related families and similar alternative foundation modes",
+    "V1 Support": "DEFERRED TO V2",
+    "Why locked this way": "Huzaifa explicitly said pile inspection / pile-related families can be kept in source but neglected for now.",
+    "Key Clause IDs / Inputs": "CL_009, CL_031, CL_040, CL_041",
+    "Build Notes / UI Notes": "Keep in the workbook and source library, but do not expose in first generator."
+  },
+  {
+    "Scope ID": "SC_022",
+    "Family / Capability": "Uncontrolled fill mode",
+    "V1 Support": "DEFERRED TO V2",
+    "Why locked this way": "Huzaifa explicitly said uncontrolled fill should be left out because the letter becomes completely different and can be brute-forced if needed.",
+    "Key Clause IDs / Inputs": "Transcript only; Input_Model exclusion note",
+    "Build Notes / UI Notes": "Do not expose in first generator. Leave as future mode."
+  }
+]

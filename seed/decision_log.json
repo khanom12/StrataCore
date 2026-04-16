@@ -1,0 +1,93 @@
+[
+  {
+    "Decision ID": "DL_001",
+    "Affected clause ID(s) / rule ID(s)": "CL_004, CL_005, CL_045, CL_046 / DT_075, DT_076",
+    "Topic": "Spread-footing value conflict",
+    "Why it matters": "The generator should not quietly alternate between 140 kPa and 100 kPa families without a clear rule.",
+    "Current understanding": "The issued example letter uses the 140 kPa family, but the source library still contains a 100 kPa alternative.",
+    "Needed from whom": "Huzaifa + reviewing engineer",
+    "Priority": "HIGH",
+    "V1 Blocking?": "PARTIAL",
+    "Status": "OPEN",
+    "Interim handling": "Keep 140 kPa as the working default family, but surface the spread-footing branch as review-sensitive in V1.",
+    "Exact review question": "When should the 100 kPa sentence ever be used instead of the 140 kPa sentence, and is 140 kPa the office default now?"
+  },
+  {
+    "Decision ID": "DL_002",
+    "Affected clause ID(s) / rule ID(s)": "CL_029, CL_030, CL_037 / DT_055, DT_056",
+    "Topic": "Engineered fill by others / unknown provenance wording",
+    "Why it matters": "These branches carry higher professional-risk wording and may refer to outside documentation or outdated internal roles.",
+    "Current understanding": "The source includes 'Hoggan must review' wording and other by-others / unknown variants that likely need modernization.",
+    "Needed from whom": "Huzaifa + reviewing engineer",
+    "Priority": "HIGH",
+    "V1 Blocking?": "NO",
+    "Status": "OPEN",
+    "Interim handling": "Keep the branches in V1 scope, but mark them REVIEW and do not bury the ambiguity in code.",
+    "Exact review question": "What is the current approved wording/process when engineered fill was done by others, is unknown, or is supported by an outside verification letter?"
+  },
+  {
+    "Decision ID": "DL_003",
+    "Affected clause ID(s) / rule ID(s)": "CL_019, CL_047 / DT_028, DT_029, DT_074",
+    "Topic": "24-inch and special as-constructed branches",
+    "Why it matters": "These are real field cases, but one incomplete or unclear branch can create wrong as-constructed wording.",
+    "Current understanding": "18-inch and 20-inch modes are clear enough to model; 24-inch and some walls-and-footing wording still need confirmation.",
+    "Needed from whom": "Huzaifa",
+    "Priority": "MEDIUM",
+    "V1 Blocking?": "NO",
+    "Status": "OPEN",
+    "Interim handling": "Keep 18-inch and 20-inch branches normal. Keep 24-inch and rarer as-constructed modes in V1 with a review flag.",
+    "Exact review question": "What exact wording, dimensions, and downstream P5 behavior apply to the 24-inch and rarer as-constructed cases?"
+  },
+  {
+    "Decision ID": "DL_004",
+    "Affected clause ID(s) / rule ID(s)": "CL_034, CL_035, CL_036, CL_042 / DT_035, DT_038, DT_082, DT_085",
+    "Topic": "Complex remediation / environmental special packages",
+    "Why it matters": "These families are in scope, but some contain multiple sub-options or incomplete wording that should not be frozen blindly.",
+    "Current understanding": "Rain-softened packages, special backfill options, fillcrete follow-up, and ground-heating text all need final office preference or clean wording.",
+    "Needed from whom": "Huzaifa",
+    "Priority": "MEDIUM",
+    "V1 Blocking?": "NO",
+    "Status": "OPEN",
+    "Interim handling": "Keep them in the workbook and decision table as REVIEW branches so UI/logic work can continue.",
+    "Exact review question": "Which wording variant is canonical for rain-softened cases, which remediation packages belong in first-release UI, and what is the full current ground-heating wording?"
+  },
+  {
+    "Decision ID": "DL_005",
+    "Affected clause ID(s) / rule ID(s)": "CL_012, CL_016, CL_023, CL_028 / DT_025, DT_084, DT_093, DT_094",
+    "Topic": "Special advisory / special-structure families",
+    "Why it matters": "These are not blocked, but they are less common and more likely to need UI labels or manual-review cues.",
+    "Current understanding": "Garden suite, building addition, slab disclaimer, and garage slab organics are all included in V1 scope but treated as special branches.",
+    "Needed from whom": "Huzaifa",
+    "Priority": "MEDIUM",
+    "V1 Blocking?": "NO",
+    "Status": "OPEN",
+    "Interim handling": "Keep these branches visible and mapped, but mark them REVIEW until Huzaifa confirms exact placement/usage expectations.",
+    "Exact review question": "When do these special advisory families appear, and are they standard add-ons or clearly labeled special-case branches?"
+  },
+  {
+    "Decision ID": "DL_006",
+    "Affected clause ID(s) / rule ID(s)": "CL_001, CL_009, CL_031, CL_040, CL_041 + uncontrolled fill / DT_012",
+    "Topic": "Explicit V2 deferrals",
+    "Why it matters": "These should stay visible in source so nothing is lost, but they should not distract or destabilize the V1 build path.",
+    "Current understanding": "Huzaifa explicitly said rare correction letters, pile-related families, and uncontrolled fill can be left for later or brute-forced by hand.",
+    "Needed from whom": "Huzaifa (already stated)",
+    "Priority": "LOW",
+    "V1 Blocking?": "NO",
+    "Status": "LOCKED",
+    "Interim handling": "Treat these families as deferred to V2 and do not expose them in first-release UI.",
+    "Exact review question": "None - this boundary is already locked unless Huzaifa reopens it later."
+  },
+  {
+    "Decision ID": "DL_007",
+    "Affected clause ID(s) / rule ID(s)": "DT_071",
+    "Topic": "Standard vs modified footing trigger thresholds",
+    "Why it matters": "The clause text is ready, but the exact business rule that chooses standard vs modified is only partially written down.",
+    "Current understanding": "Huzaifa described examples and downstream behavior, but not yet a final decision rule set covering every branch.",
+    "Needed from whom": "Huzaifa + reviewing engineer",
+    "Priority": "HIGH",
+    "V1 Blocking?": "NO",
+    "Status": "OPEN",
+    "Interim handling": "Continue building the generator with a clear decision-table slot for this rule and a review flag where needed.",
+    "Exact review question": "What exact conditions flip a house from standard to modified footing in current office practice?"
+  }
+]
