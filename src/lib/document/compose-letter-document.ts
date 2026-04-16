@@ -2,10 +2,11 @@ import { buildSignoffModel } from '@/lib/signoff/build-signoff-model';
 import { formatDisplayDate, getFoundationInspectionSubjectLine } from '@/lib/domain/report-helpers';
 import { buildDraftReadinessState } from '@/lib/form/build-draft-workflow';
 import { validateDraftForClientOutput } from '@/lib/form/validate-draft';
-import { getClientReferenceLabelText, officeShellText } from '@/lib/seed/letter-surfaces';
+import { getClientReferenceLabelText, officeShellLayout, officeShellText } from '@/lib/seed/letter-surfaces';
 import { getReportSectionDefinition, toClauseRefs, toRuleRefs } from '@/lib/seed/source-data';
 import type { FormState, GeneratedParagraph, GenerationResult, SectionId } from '@/types/domain';
 import type {
+  ArchivePathBlock,
   ComposedLetterDocument,
   FooterBlock,
   HeaderBlock,
@@ -109,6 +110,7 @@ function buildClientAddressBlock(formState: FormState, topBlock: GeneratedParagr
 }
 
 function buildReBlock(formState: FormState, topBlock: GeneratedParagraph): MetadataBlock {
+  const subjectLine = getSubjectLine(formState);
   const detailLines = [
     ...buildLegalDescriptionLines(formState),
     formState.topBlock.includeClientJobNumber && formState.topBlock.clientJobNumber
@@ -124,9 +126,19 @@ function buildReBlock(formState: FormState, topBlock: GeneratedParagraph): Metad
     role: 're_block',
     alignment: 'left',
     title: 'Re block',
-    lines: [`Re: ${getSubjectLine(formState)}`, ...detailLines],
-    subjectLine: getSubjectLine(formState),
+    lines: [subjectLine, ...detailLines],
+    subjectLine,
+    reLabel: officeShellLayout.reBlock.label,
     detailLines,
+    reLayout: {
+      label: officeShellLayout.reBlock.label,
+      leadTabCount: officeShellLayout.reBlock.leadTabCount,
+      detailTabCount: officeShellLayout.reBlock.detailTabCount,
+      tabStopTwips: [...officeShellLayout.reBlock.tabStopTwips],
+      previewHeadlineIndentPx: officeShellLayout.reBlock.previewHeadlineIndentPx,
+      previewLabelWidthPx: officeShellLayout.reBlock.previewLabelWidthPx,
+      previewDetailIndentPx: officeShellLayout.reBlock.previewDetailIndentPx
+    },
     sectionId: topBlock.sectionId,
     clauseRefs: topBlock.clauseRefs,
     ruleRefs: topBlock.ruleRefs
@@ -140,23 +152,20 @@ function buildFirstPageHeader(): HeaderBlock {
     role: 'first_page_identity',
     alignment: 'center',
     title: 'First-page header',
-    lines: [officeShellText.companyName, officeShellText.companySubtitle, officeShellText.companyCities]
+    lines: [officeShellText.companyName, officeShellText.companySubtitle, officeShellText.companyCities],
+    logoAsset: officeShellLayout.firstPageHeader.logo
   };
 }
 
-function buildContinuationHeader(formState: FormState): HeaderBlock {
-  const subjectLine = getSubjectLine(formState);
-  const fileNumberLine = `File No. ${formState.topBlock.fileNumber}`;
-
+function buildContinuationHeader(formState: FormState, currentPage: number, totalPages: number): HeaderBlock {
   return {
     id: 'header-continuation-page',
     kind: 'header_block',
     role: 'continuation_subject',
     alignment: 'left',
     title: 'Continuation header',
-    lines: [officeShellText.companyName, `${subjectLine}\t${fileNumberLine}`],
-    subjectLine,
-    fileNumberLine
+    lines: [officeShellText.companyName],
+    pageNumberText: `Page ${currentPage} of ${totalPages}`
   };
 }
 
@@ -180,20 +189,29 @@ function buildFirstPageFooter(): FooterBlock {
   };
 }
 
-function buildContinuationFooter(archivePathLine?: string): FooterBlock {
-  const offices = buildOfficeContacts();
+function buildContinuationFooter(formState: FormState): FooterBlock {
+  const subjectLine = getSubjectLine(formState);
+  const fileNumberLine = `File No. ${formState.topBlock.fileNumber}`;
 
   return {
     id: 'footer-continuation-page',
     kind: 'footer_block',
     role: 'continuation_footer',
-    alignment: 'center',
+    alignment: 'left',
     title: 'Continuation footer',
-    lines: offices.flatMap((office) => [office.city, office.phone]),
-    offices,
-    archivePathLine,
+    lines: [],
+    continuationMarkerLine: `${subjectLine}\t${fileNumberLine}`,
     clauseRefs: toClauseRefs(['FMT_03', 'SIG_04']),
-    ruleRefs: toRuleRefs(['DT_115', 'DT_121'])
+    ruleRefs: toRuleRefs(['DT_115', 'DT_124'])
+  };
+}
+
+function buildArchivePathBlock(archivePath: string): ArchivePathBlock {
+  return {
+    id: 'archive-path-block',
+    kind: 'archive_path_block',
+    alignment: 'left',
+    text: archivePath
   };
 }
 
@@ -246,6 +264,8 @@ function estimateBodyBlockUnits(block: LetterDocumentBodyBlock) {
     }
     case 'signoff_block':
       return 26 + block.lines.length * 10 + (block.engineerMemberNumberLine ? 4 : 0);
+    case 'archive_path_block':
+      return 8;
     case 'spacer_block':
       return block.size === 'large' ? 12 : block.size === 'medium' ? 8 : 4;
     case 'trace_block':
@@ -370,15 +390,30 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
     }
   }
 
+  const archivePathBlock = buildArchivePathBlock(result.archivePath);
+  const finalChunk = continuationChunks.at(-1);
+
+  if (!finalChunk) {
+    continuationChunks.push([archivePathBlock]);
+  } else if (
+    finalChunk.reduce((total, block) => total + estimateBodyBlockUnits(block), 0) + estimateBodyBlockUnits(archivePathBlock) <=
+    CONTINUATION_PAGE_BUDGET
+  ) {
+    finalChunk.push(archivePathBlock);
+  } else {
+    continuationChunks.push([archivePathBlock]);
+  }
+
   continuationChunks.forEach((chunk, index) => {
-    const isLastContinuationPage = index === continuationChunks.length - 1;
+    const currentPage = index + 2;
+    const totalPages = continuationChunks.length + 1;
 
     pages.push({
       id: `page-${index + 2}`,
       kind: 'continuation_page',
-      headerBlock: buildContinuationHeader(formState),
+      headerBlock: buildContinuationHeader(formState, currentPage, totalPages),
       bodyBlocks: [...chunk],
-      footerBlock: buildContinuationFooter(isLastContinuationPage ? result.archivePath : undefined)
+      footerBlock: buildContinuationFooter(formState)
     });
   });
 

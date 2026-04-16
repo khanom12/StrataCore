@@ -16,11 +16,14 @@ function flattenVisibleText(blocks: LetterDocumentBodyBlock[]): string {
       switch (block.kind) {
         case 'metadata_block':
           return [
+            ...(block.reLabel ? [block.reLabel] : []),
             ...(block.subjectLine ? [block.subjectLine] : []),
             ...(block.detailLines ?? []),
             ...block.lines
           ].join('\n');
         case 'paragraph_block':
+          return block.text;
+        case 'archive_path_block':
           return block.text;
         case 'signoff_block':
           return [
@@ -64,16 +67,20 @@ describe('Victory Homes 2026 reference case', () => {
     const visibleText = [
       ...document.pages.flatMap((page) => page.headerBlock.lines),
       ...document.pages.flatMap((page) => page.bodyBlocks.flatMap((block) => flattenVisibleText([block]))),
-      ...document.pages.flatMap((page) => page.footerBlock.lines)
+      ...document.pages.flatMap((page) => page.footerBlock.lines),
+      ...document.pages.flatMap((page) => (page.footerBlock.continuationMarkerLine ? [page.footerBlock.continuationMarkerLine] : []))
     ].join('\n');
+    const lastPageText = flattenVisibleText(document.pages.at(-1)?.bodyBlocks ?? []);
 
     expect(visibleText).toContain('CONSULTING AND TESTING ENGINEERS');
     expect(visibleText).toContain('2304 - 119 Avenue NE');
     expect(visibleText).toContain('February 4, 2026');
     expect(visibleText).toContain('780-489-0700');
     expect(visibleText).toContain('J.R. Paine & Associates Ltd.');
+    expect(document.pages[0].headerBlock.logoAsset?.publicPath).toBe('/assets/legacy/office-logo.png');
+    expect(document.pages[1].headerBlock.pageNumberText).toBe(`Page 2 of ${document.pages.length}`);
     expect(visibleText).toContain('Foundation Soil Inspection\tFile No. 5478 - 1');
-    expect(document.pages.at(-1)?.footerBlock.archivePathLine).toContain('h38566vic.docx');
+    expect(lastPageText).toContain('h38566vic.docx');
     expect(visibleText).toContain('Reviewed by,');
     expect(visibleText).toContain('APEGA Member #: 89667');
     expect(visibleText).not.toContain('Edmonton office block placeholder');

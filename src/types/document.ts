@@ -11,6 +11,7 @@ export type DocumentBlockKind =
   | 'header_block'
   | 'metadata_block'
   | 'paragraph_block'
+  | 'archive_path_block'
   | 'signoff_block'
   | 'footer_block'
   | 'spacer_block'
@@ -22,6 +23,24 @@ interface DocumentBlockBase {
   alignment?: DocumentAlignment;
 }
 
+export interface LogoAssetMetadata {
+  publicPath: string;
+  filePath: string;
+  widthPx: number;
+  heightPx: number;
+  altText: string;
+}
+
+export interface ReBlockLayoutMetadata {
+  label: string;
+  leadTabCount: number;
+  detailTabCount: number;
+  tabStopTwips: number[];
+  previewHeadlineIndentPx: number;
+  previewLabelWidthPx: number;
+  previewDetailIndentPx: number;
+}
+
 export interface HeaderBlock extends DocumentBlockBase {
   kind: 'header_block';
   role: HeaderBlockRole;
@@ -29,6 +48,8 @@ export interface HeaderBlock extends DocumentBlockBase {
   lines: string[];
   subjectLine?: string;
   fileNumberLine?: string;
+  pageNumberText?: string;
+  logoAsset?: LogoAssetMetadata;
 }
 
 export interface MetadataBlock extends DocumentBlockBase {
@@ -39,7 +60,9 @@ export interface MetadataBlock extends DocumentBlockBase {
   dateLine?: string;
   fileNumberLine?: string;
   subjectLine?: string;
+  reLabel?: string;
   detailLines?: string[];
+  reLayout?: ReBlockLayoutMetadata;
   emphasisLineIndexes?: number[];
   sectionId?: SectionId;
   clauseRefs: ClauseRef[];
@@ -72,16 +95,21 @@ export interface SignoffBlock extends DocumentBlockBase {
   ruleRefs: RuleRef[];
 }
 
+export interface ArchivePathBlock extends DocumentBlockBase {
+  kind: 'archive_path_block';
+  text: string;
+}
+
 export interface FooterBlock extends DocumentBlockBase {
   kind: 'footer_block';
   role: FooterBlockRole;
   title: string;
   lines: string[];
+  continuationMarkerLine?: string;
   offices?: Array<{
     city: string;
     phone: string;
   }>;
-  archivePathLine?: string;
   clauseRefs: ClauseRef[];
   ruleRefs: RuleRef[];
 }
@@ -97,7 +125,7 @@ export interface TraceBlock extends DocumentBlockBase {
   lines: string[];
 }
 
-export type LetterDocumentBodyBlock = MetadataBlock | ParagraphBlock | SignoffBlock | SpacerBlock | TraceBlock;
+export type LetterDocumentBodyBlock = MetadataBlock | ParagraphBlock | ArchivePathBlock | SignoffBlock | SpacerBlock | TraceBlock;
 
 export interface ComposedLetterPage {
   id: string;

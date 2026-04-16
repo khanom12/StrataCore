@@ -14,22 +14,25 @@ function flattenVisibleText(documentText: ReturnType<typeof composeLetterDocumen
       ...page.bodyBlocks.flatMap((block) => {
         switch (block.kind) {
           case 'metadata_block':
-            return [...block.lines, ...(block.detailLines ?? [])];
-          case 'paragraph_block':
-            return [block.text];
-          case 'signoff_block':
-            return [
-              block.salutationLine,
+            return [...(block.reLabel ? [block.reLabel] : []), ...block.lines, ...(block.detailLines ?? [])];
+        case 'paragraph_block':
+          return [block.text];
+        case 'archive_path_block':
+          return [block.text];
+        case 'signoff_block':
+          return [
+            block.salutationLine,
               block.organization,
               ...block.lines.flatMap((line) => [line.label, line.value]),
               block.engineerMemberNumberLine
             ];
-          case 'spacer_block':
-          case 'trace_block':
-            return [];
-        }
+        case 'spacer_block':
+        case 'trace_block':
+          return [];
+      }
       }),
-      ...page.footerBlock.lines
+      ...page.footerBlock.lines,
+      ...(page.footerBlock.continuationMarkerLine ? [page.footerBlock.continuationMarkerLine] : [])
     ])
     .join('\n');
 }
@@ -152,17 +155,23 @@ describe('legacy output regression matrix', () => {
     expect(topBlock).toContain('Job# CBR-6223');
   });
 
-  it('uses the real office shell text in composed historical-case documents and shows the archive path only on the final footer', () => {
+  it('uses the real office shell text in composed historical-case documents and places the archive path in the final visible body shell', () => {
     const fixture = getLegacyOutputCase('water-in-auger-holes-upgraded-drainage');
     const result = generateLetter(fixture!.formState);
     const document = composeLetterDocument(fixture!.formState, result);
     const visibleText = flattenVisibleText(document);
+    const lastPageText = flattenVisibleText({
+      ...document,
+      pages: [document.pages.at(-1)!]
+    });
 
     expect(visibleText).toContain('J.R. Paine & Associates Ltd.');
     expect(visibleText).toContain('Foundation Soils Inspection\tFile No. 4460 - 1');
     expect(visibleText).toContain('April 7, 2026');
     expect(visibleText).toContain('Reviewed by,');
-    expect(document.pages.at(-1)?.footerBlock.archivePathLine).toContain('h38862');
+    expect(document.pages[0].headerBlock.logoAsset?.publicPath).toBe('/assets/legacy/office-logo.png');
+    expect(document.pages.slice(1).every((page) => !page.footerBlock.offices?.length)).toBe(true);
+    expect(lastPageText).toContain('h38862');
     expect(visibleText).not.toContain('[Engineer stamp placeholder');
     expect(visibleText).not.toContain('[Permit-to-practice');
   });

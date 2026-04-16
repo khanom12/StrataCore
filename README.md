@@ -45,13 +45,13 @@ npm run dev
 1. Run `npm install`
 2. Run `npm test`
 3. Run `npm run build`
-4. Run `npm run dev`
+4. Run `PORT=3001 npm run dev`
 5. Open `/form` and `/preview` in the local Next.js URL shown in the terminal
 6. On `/form`, load `Victory Homes 2026`
 7. On `/form`, verify dependency behavior by toggling legal description mode, client job number, subdivision, garage mode, sulphate paragraph, water issue mode, and layered soil mode; hidden child fields should disappear and clear cleanly
 8. Save a draft from `/form`, then confirm `/preview` shows the formatted draft first, with the centered JR Paine identity block, right-aligned office/date shell, structured Re block, continuation header, separated signoff lines, and a secondary analyst/debug panel
 9. Click `Download DOCX` on `/preview` and expect a real `.docx` file to download
-10. Compare the exported shell and preview spacing/alignment/signoff structure against the Victory reference standard and the historical letters in `reference-letters/legacy`
+10. Compare the exported shell and preview spacing/alignment/signoff structure against the Victory reference standard and the historical letters in `reference-letters/legacy`, using the fresh port to avoid accidentally inspecting a stale server
 11. POST to `/api/generate` and expect normalized generation JSON
 12. POST to `/api/export` and expect a DOCX attachment response
 

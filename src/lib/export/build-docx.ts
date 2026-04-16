@@ -1,18 +1,29 @@
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
 import {
   AlignmentType,
+  BorderStyle,
   Document,
   Footer,
   Header,
+  ImageRun,
   Packer,
   Paragraph,
   SectionType,
   TabStopPosition,
   TabStopType,
+  Table,
+  TableCell,
+  TableLayoutType,
+  TableRow,
   TextRun,
+  WidthType,
   type IParagraphOptions
 } from 'docx';
 
 import type {
+  ArchivePathBlock,
   ComposedLetterDocument,
   FooterBlock,
   HeaderBlock,
@@ -21,6 +32,7 @@ import type {
   ParagraphBlock,
   SignoffBlock
 } from '@/types/document';
+import { officeShellLayout } from '@/lib/seed/letter-surfaces';
 
 export interface DocxExportResult {
   buffer: Uint8Array;
@@ -32,20 +44,30 @@ export interface DocxExportResult {
 
 const DEFAULT_FONT = 'Franklin Gothic Book';
 const BODY_SIZE = 22;
-const HEADER_TITLE_SIZE = 24;
-const HEADER_SECONDARY_SIZE = 20;
-const FOOTER_SIZE = 18;
+const FIRST_PAGE_TITLE_SIZE = 48;
+const FIRST_PAGE_SUBTITLE_SIZE = 16;
+const CONTINUATION_META_SIZE = officeShellLayout.continuation.pageNumberSizeHalfPoints;
+const FOOTER_SIZE = officeShellLayout.continuation.footerMarkerSizeHalfPoints;
+const ARCHIVE_PATH_SIZE = officeShellLayout.archivePath.fontSizeHalfPoints;
 const RIGHT_TAB_STOP = [{ position: TabStopPosition.MAX, type: TabStopType.RIGHT }];
-const FOOTER_COLUMN_TABS = [
-  { position: 1800, type: TabStopType.LEFT },
-  { position: 3600, type: TabStopType.CENTER },
-  { position: 5400, type: TabStopType.RIGHT }
+const CONTINUATION_FOOTER_TABS = [
+  { position: 4680, type: TabStopType.CENTER },
+  { position: TabStopPosition.MAX, type: TabStopType.RIGHT }
 ];
+const NO_BORDERS = {
+  top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  left: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  insideHorizontal: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
+  insideVertical: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' }
+} as const;
 
-function buildRun(text: string, options?: { bold?: boolean; size?: number }) {
+function buildRun(text: string, options?: { bold?: boolean; italic?: boolean; size?: number }) {
   return new TextRun({
     text: text || ' ',
     bold: options?.bold,
+    italics: options?.italic,
     size: options?.size ?? BODY_SIZE,
     font: DEFAULT_FONT
   });
@@ -63,6 +85,7 @@ function buildSimpleParagraph(
     after?: number;
     line?: number;
     bold?: boolean;
+    italic?: boolean;
     size?: number;
     tabs?: Array<{
       position: number;
@@ -76,62 +99,165 @@ function buildSimpleParagraph(
     spacing: { before: options?.before ?? 0, after: options?.after ?? 120, line: options?.line },
     tabStops: options?.tabs,
     indent: options?.indent,
-    children: [buildRun(text, { bold: options?.bold, size: options?.size })]
+    children: [buildRun(text, { bold: options?.bold, italic: options?.italic, size: options?.size })]
   });
 }
 
-function buildHeader(block: HeaderBlock) {
+async function loadHeaderLogoData(documentModel: ComposedLetterDocument) {
+  const logoPaths = [...new Set(documentModel.pages.map((page) => page.headerBlock.logoAsset?.filePath).filter((value): value is string => Boolean(value)))];
+  const entries = await Promise.all(
+    logoPaths.map(async (path) => [path, new Uint8Array(await readFile(resolve(process.cwd(), path)))] as const)
+  );
+
+  return new Map(entries);
+}
+
+function buildHeader(block: HeaderBlock, options?: { logoData?: Uint8Array }) {
   if (block.role === 'continuation_subject') {
     return new Header({
-      children: block.lines.map((line, index) =>
+      children: [
         buildParagraph({
-          spacing: { after: index === block.lines.length - 1 ? 80 : 20 },
-          tabStops: line.includes('\t') ? RIGHT_TAB_STOP : undefined,
-          children: [buildRun(line, { size: BODY_SIZE, bold: index === 1 })]
+          spacing: { after: 80 },
+          tabStops: RIGHT_TAB_STOP,
+          children: [
+            buildRun(block.lines[0] ?? '', {
+              size: officeShellLayout.continuation.headerCompanySizeHalfPoints,
+              italic: true,
+              bold: true
+            }),
+            buildRun('\t'),
+            buildRun(block.pageNumberText ?? 'Page 1 of 1', { size: CONTINUATION_META_SIZE })
+          ]
         })
-      )
+      ]
     });
   }
 
   return new Header({
-    children: block.lines.map((line, index) =>
-      buildSimpleParagraph(line, {
-        bold: index === 0,
-        size: index === 0 ? HEADER_TITLE_SIZE : HEADER_SECONDARY_SIZE,
-        alignment: AlignmentType.CENTER,
-        after: index === block.lines.length - 1 ? 120 : 40
+    children: [
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        borders: NO_BORDERS,
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: officeShellLayout.firstPageHeader.logoColumnWidthPercent, type: WidthType.PERCENTAGE },
+                borders: NO_BORDERS,
+                children: [
+                  buildParagraph({
+                    spacing: { after: 0 },
+                    children:
+                      block.logoAsset && options?.logoData
+                        ? [
+                            new ImageRun({
+                              data: options.logoData,
+                              type: 'png',
+                              transformation: {
+                                width: block.logoAsset.widthPx,
+                                height: block.logoAsset.heightPx
+                              }
+                            })
+                          ]
+                        : [buildRun(' ')]
+                  })
+                ]
+              }),
+              new TableCell({
+                width: { size: officeShellLayout.firstPageHeader.identityColumnWidthPercent, type: WidthType.PERCENTAGE },
+                borders: NO_BORDERS,
+                children: [
+                  buildSimpleParagraph(block.lines[0] ?? '', {
+                    bold: true,
+                    italic: true,
+                    size: FIRST_PAGE_TITLE_SIZE,
+                    alignment: AlignmentType.CENTER,
+                    after: 40
+                  }),
+                  buildSimpleParagraph(block.lines[1] ?? '', {
+                    bold: true,
+                    size: FIRST_PAGE_SUBTITLE_SIZE,
+                    alignment: AlignmentType.CENTER,
+                    after: 20
+                  }),
+                  buildSimpleParagraph(block.lines[2] ?? '', {
+                    size: FIRST_PAGE_SUBTITLE_SIZE,
+                    alignment: AlignmentType.CENTER,
+                    after: 20
+                  })
+                ]
+              })
+            ]
+          })
+        ]
       })
-    )
+    ]
   });
 }
 
 function buildFooter(block: FooterBlock) {
-  const children: Paragraph[] = [];
+  if (block.role === 'continuation_footer') {
+    return new Footer({
+      children: [
+        buildParagraph({
+          spacing: { after: 0 },
+          tabStops: CONTINUATION_FOOTER_TABS,
+          children: [buildRun(block.continuationMarkerLine ?? '', { size: FOOTER_SIZE, italic: true })]
+        })
+      ]
+    });
+  }
 
-  if (block.archivePathLine) {
-    children.push(
-      buildSimpleParagraph(block.archivePathLine, {
-        alignment: AlignmentType.CENTER,
-        size: FOOTER_SIZE,
-        after: 90
+  const rows: TableRow[] = [];
+
+  if (block.offices?.length) {
+    rows.push(
+      new TableRow({
+        children: block.offices.map((office) =>
+          new TableCell({
+            width: { size: 33.33, type: WidthType.PERCENTAGE },
+            borders: NO_BORDERS,
+            children: [
+              buildSimpleParagraph(office.city, {
+                alignment: AlignmentType.CENTER,
+                size: officeShellLayout.firstPageFooter.fontSizeHalfPoints,
+                after: 0
+              })
+            ]
+          })
+        )
+      })
+    );
+    rows.push(
+      new TableRow({
+        children: block.offices.map((office) =>
+          new TableCell({
+            width: { size: 33.33, type: WidthType.PERCENTAGE },
+            borders: NO_BORDERS,
+            children: [
+              buildSimpleParagraph(office.phone, {
+                alignment: AlignmentType.CENTER,
+                size: officeShellLayout.firstPageFooter.fontSizeHalfPoints,
+                after: 0
+              })
+            ]
+          })
+        )
       })
     );
   }
 
-  if (block.offices?.length) {
-    for (const office of block.offices) {
-      children.push(
-        buildParagraph({
-          alignment: AlignmentType.CENTER,
-          tabStops: FOOTER_COLUMN_TABS,
-          spacing: { after: 0 },
-          children: [buildRun(`${office.city}\t${office.phone}`, { size: FOOTER_SIZE })]
-        })
-      );
-    }
-  }
-
-  return new Footer({ children });
+  return new Footer({
+    children: [
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        borders: NO_BORDERS,
+        rows
+      })
+    ]
+  });
 }
 
 function buildMetadataParagraphs(block: MetadataBlock): Paragraph[] {
@@ -140,18 +266,18 @@ function buildMetadataParagraphs(block: MetadataBlock): Paragraph[] {
       return block.lines.map((line, index) =>
         buildSimpleParagraph(line, {
           alignment: AlignmentType.RIGHT,
-          after: index === block.lines.length - 1 ? 60 : 20
+          after: index === block.lines.length - 1 ? officeShellLayout.topRightBlock.officeBlockAfterTwips : officeShellLayout.topRightBlock.officeLineAfterTwips
         })
       );
     case 'date_file':
       return [
         buildSimpleParagraph(block.dateLine ?? block.lines[0] ?? '', {
           alignment: AlignmentType.RIGHT,
-          after: 40
+          after: officeShellLayout.topRightBlock.dateAfterTwips
         }),
         buildSimpleParagraph(block.fileNumberLine ?? block.lines[1] ?? '', {
           alignment: AlignmentType.RIGHT,
-          after: 180
+          after: officeShellLayout.topRightBlock.fileAfterTwips
         })
       ];
     case 'client_address':
@@ -162,24 +288,36 @@ function buildMetadataParagraphs(block: MetadataBlock): Paragraph[] {
         })
       );
     case 're_block': {
+      const layout = block.reLayout ?? {
+        label: 'Re:',
+        leadTabCount: 2,
+        detailTabCount: 4,
+        tabStopTwips: [720, 1440, 1800, 2160, 2520],
+        previewHeadlineIndentPx: 22,
+        previewLabelWidthPx: 54,
+        previewDetailIndentPx: 96
+      };
+      const tabStops = layout.tabStopTwips.map((position) => ({ position, type: TabStopType.LEFT }));
       const paragraphs = [
         buildParagraph({
           spacing: { after: 40 },
-          tabStops: [{ position: 720, type: TabStopType.LEFT }],
-          children: [buildRun(`Re:\t${block.subjectLine ?? ''}`)]
+          tabStops,
+          children: [buildRun(`${'\t'.repeat(layout.leadTabCount)}${block.reLabel ?? layout.label}\t${block.subjectLine ?? ''}`, { bold: true })]
         })
       ];
 
-      for (const line of block.detailLines ?? []) {
+      (block.detailLines ?? []).forEach((line, index, lines) => {
         paragraphs.push(
-          buildSimpleParagraph(line, {
-            after: 30,
-            indent: { left: 360 }
+          buildParagraph({
+            spacing: {
+              after: index === lines.length - 1 ? officeShellLayout.reBlock.trailingSpaceAfterTwips : 30
+            },
+            tabStops,
+            children: [buildRun(`${'\t'.repeat(layout.detailTabCount)}${line}`, { bold: true })]
           })
         );
-      }
+      });
 
-      paragraphs.push(buildParagraph({ spacing: { after: 160 }, children: [buildRun(' ')] }));
       return paragraphs;
     }
   }
@@ -196,26 +334,33 @@ function buildBodyParagraph(block: ParagraphBlock) {
   });
 }
 
+function buildArchivePathParagraph(block: ArchivePathBlock) {
+  return buildSimpleParagraph(block.text, {
+    size: ARCHIVE_PATH_SIZE,
+    after: officeShellLayout.archivePath.afterTwips
+  });
+}
+
 function buildSignoffParagraphs(block: SignoffBlock): Paragraph[] {
   const paragraphs: Paragraph[] = [
     buildSimpleParagraph(block.salutationLine, {
-      after: 140
+      after: officeShellLayout.signoff.salutationAfterTwips
     }),
     buildSimpleParagraph(block.organization, {
-      after: 220
+      after: officeShellLayout.signoff.organizationAfterTwips
     })
   ];
 
   for (const line of block.lines) {
     paragraphs.push(
       buildSimpleParagraph(line.label, {
-        after: 20
+        after: officeShellLayout.signoff.labelAfterTwips
       })
     );
     paragraphs.push(
       buildSimpleParagraph(line.value, {
-        after: 130,
-        indent: { left: 180 }
+        after: officeShellLayout.signoff.valueAfterTwips,
+        indent: { left: officeShellLayout.signoff.valueIndentTwips }
       })
     );
   }
@@ -238,6 +383,9 @@ function buildBodyParagraphs(blocks: LetterDocumentBodyBlock[]): Paragraph[] {
       case 'paragraph_block':
         paragraphs.push(buildBodyParagraph(block));
         break;
+      case 'archive_path_block':
+        paragraphs.push(buildArchivePathParagraph(block));
+        break;
       case 'signoff_block':
         paragraphs.push(...buildSignoffParagraphs(block));
         break;
@@ -253,6 +401,7 @@ function buildBodyParagraphs(blocks: LetterDocumentBodyBlock[]): Paragraph[] {
 }
 
 export async function buildDocx(documentModel: ComposedLetterDocument): Promise<DocxExportResult> {
+  const headerLogoData = await loadHeaderLogoData(documentModel);
   const document = new Document({
     styles: {
       default: {
@@ -283,7 +432,9 @@ export async function buildDocx(documentModel: ComposedLetterDocument): Promise<
         }
       },
       headers: {
-        default: buildHeader(page.headerBlock)
+        default: buildHeader(page.headerBlock, {
+          logoData: page.headerBlock.logoAsset ? headerLogoData.get(page.headerBlock.logoAsset.filePath) : undefined
+        })
       },
       footers: {
         default: buildFooter(page.footerBlock)

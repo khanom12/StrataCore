@@ -500,8 +500,14 @@ textarea {
 }
 
 .letter-header {
-  text-align: center;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
+}
+
+.letter-header--first {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 22px;
 }
 
 .letter-header__title,
@@ -518,12 +524,44 @@ textarea {
   margin: 0;
 }
 
+.letter-header__logo-panel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 72px;
+}
+
+.letter-header__logo {
+  display: block;
+  width: 100%;
+  max-width: 176px;
+  height: auto;
+}
+
+.letter-header__identity {
+  display: grid;
+  gap: 4px;
+}
+
 .letter-header__title {
   font-weight: 700;
+  font-style: italic;
+  text-align: center;
+  font-size: 1.88rem;
+  line-height: 1.1;
 }
 
 .letter-header__subtitle {
-  letter-spacing: 0.03em;
+  text-align: center;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.letter-header__cities {
+  text-align: center;
+  font-size: 0.76rem;
+  letter-spacing: 0.05em;
 }
 
 .first-page-meta {
@@ -545,7 +583,7 @@ textarea {
 }
 
 .client-address-block {
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .client-address-block__name {
@@ -553,18 +591,28 @@ textarea {
 }
 
 .re-block {
-  display: grid;
-  grid-template-columns: 36px 1fr;
-  gap: 10px;
+  --re-headline-indent: 22px;
+  --re-label-width: 54px;
+  --re-detail-indent: 96px;
   margin-bottom: 18px;
 }
 
-.re-block__label {
-  font-weight: 600;
+.re-block__headline {
+  display: grid;
+  grid-template-columns: var(--re-label-width) minmax(0, 1fr);
+  gap: 10px;
+  padding-left: var(--re-headline-indent);
+  margin: 0 0 4px;
 }
 
-.re-block__subject {
-  margin-bottom: 6px;
+.re-block__label,
+.re-block__subject,
+.re-block__detail {
+  font-weight: 700;
+}
+
+.re-block__detail {
+  padding-left: var(--re-detail-indent);
 }
 
 .body-paragraph-block {
@@ -584,39 +632,45 @@ textarea {
 }
 
 .signoff-block {
-  margin-top: 24px;
+  margin-top: 28px;
 }
 
 .signoff-block__organization {
-  margin: 18px 0;
+  margin: 20px 0 24px;
 }
 
 .signoff-block__line-group {
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .signoff-block__label {
-  margin-bottom: 2px;
-  font-weight: 600;
+  margin-bottom: 3px;
 }
 
-.continuation-header {
-  display: grid;
-  gap: 4px;
-  border-bottom: 1px solid rgba(63, 51, 36, 0.12);
-  padding-bottom: 10px;
+.continuation-header-shell {
   margin-bottom: 18px;
 }
 
-.continuation-header__line {
+.continuation-header {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  font-weight: 600;
+  align-items: flex-start;
 }
 
-.continuation-header__line--meta {
-  font-size: 0.96rem;
+.continuation-header__line {
+  font-style: italic;
+  font-size: 1rem;
+}
+
+.continuation-header__line--company {
+  font-weight: 700;
+}
+
+.continuation-page-number {
+  margin: 0;
+  white-space: nowrap;
+  font-size: 0.94rem;
 }
 
 .signoff-block__value {
@@ -627,27 +681,48 @@ textarea {
   margin-top: 6px;
 }
 
+.archive-path-block {
+  margin-top: 14px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
 .letter-footer {
-  margin-top: 28px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(63, 51, 36, 0.12);
+  margin-top: 26px;
 }
 
-.letter-footer__offices {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+.letter-footer--continuation {
+  padding-top: 0;
+}
+
+.letter-footer__continuation-marker {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-style: italic;
+  font-size: 0.84rem;
+}
+
+.letter-footer--office {
+  padding-top: 6px;
+}
+
+.letter-footer__office-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.letter-footer__office-table td {
+  padding: 0 4px;
   text-align: center;
+  font-size: 0.78rem;
 }
 
-.letter-footer__office p:first-child {
+.letter-footer__office-table tr:first-child td {
   font-weight: 600;
-}
-
-.letter-footer__archive {
-  margin: 0 0 12px;
-  text-align: center;
-  font-size: 0.92rem;
+  padding-bottom: 2px;
 }
 
 details.preview-card summary,
@@ -678,11 +753,20 @@ details.internal-details[open] summary {
   .preview-meta,
   .field-grid,
   .first-page-meta,
-  .letter-footer__offices {
+  .letter-header--first {
     grid-template-columns: 1fr;
   }
 
-  .continuation-header__line {
+  .continuation-header-shell {
+    margin-bottom: 16px;
+  }
+
+  .continuation-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .letter-footer__continuation-marker {
     flex-direction: column;
     align-items: flex-start;
   }

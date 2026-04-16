@@ -115,6 +115,55 @@ export const officeShellText = {
   closingParagraph: 'We trust this information is considered satisfactory. Should you have any questions, please contact our office.'
 } as const;
 
+export const officeShellLayout = {
+  firstPageHeader: {
+    logo: {
+      publicPath: '/assets/legacy/office-logo.png',
+      filePath: 'public/assets/legacy/office-logo.png',
+      widthPx: 176,
+      heightPx: 70,
+      altText: 'J.R. Paine & Associates Ltd. office logo'
+    },
+    logoColumnWidthPercent: 24,
+    identityColumnWidthPercent: 76
+  },
+  topRightBlock: {
+    officeLineAfterTwips: 20,
+    officeBlockAfterTwips: 60,
+    dateAfterTwips: 40,
+    fileAfterTwips: 180
+  },
+  reBlock: {
+    label: 'Re:',
+    leadTabCount: 2,
+    detailTabCount: 4,
+    tabStopTwips: [720, 1440, 1800, 2160, 2520],
+    trailingSpaceAfterTwips: 160,
+    previewHeadlineIndentPx: 22,
+    previewLabelWidthPx: 54,
+    previewDetailIndentPx: 96
+  },
+  signoff: {
+    salutationAfterTwips: 140,
+    organizationAfterTwips: 280,
+    labelAfterTwips: 20,
+    valueAfterTwips: 120,
+    valueIndentTwips: 216
+  },
+  archivePath: {
+    fontSizeHalfPoints: 16,
+    afterTwips: 80
+  },
+  firstPageFooter: {
+    fontSizeHalfPoints: 16
+  },
+  continuation: {
+    headerCompanySizeHalfPoints: 30,
+    pageNumberSizeHalfPoints: 22,
+    footerMarkerSizeHalfPoints: 18
+  }
+} as const;
+
 export const signoffText = {
   salutation: 'Yours truly,',
   organization: 'J.R. Paine & Associates Ltd.',

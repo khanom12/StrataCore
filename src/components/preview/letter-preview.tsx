@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 import { composeLetterDocument } from '@/lib/document/compose-letter-document';
@@ -12,6 +11,7 @@ import { getFieldPathHash } from '@/lib/form/field-paths';
 import { generateLetter } from '@/lib/generation/generate-letter';
 import type { FormState } from '@/types/domain';
 import type {
+  ArchivePathBlock,
   ComposedLetterPage,
   FooterBlock,
   HeaderBlock,
@@ -24,6 +24,15 @@ import type {
 function parseFilenameFromDisposition(headerValue: string | null, fallback: string) {
   const match = /filename="?([^"]+)"?/.exec(headerValue ?? '');
   return match?.[1] ?? fallback;
+}
+
+function splitMarkerLine(value?: string) {
+  if (!value) {
+    return { left: '', right: '' };
+  }
+
+  const [left, right] = value.split('\t');
+  return { left, right: right ?? '' };
 }
 
 function getMetadataBlock(page: ComposedLetterPage, role: MetadataBlock['role']) {
@@ -41,11 +50,16 @@ function getSignoffBlock(page: ComposedLetterPage) {
 function FirstPageHeaderBlock({ block }: { block: HeaderBlock }) {
   return (
     <header className="letter-header letter-header--first">
-      {block.lines.map((line, index) => (
-        <p key={`${block.id}-${line}-${index}`} className={index === 0 ? 'letter-header__title' : index === 1 ? 'letter-header__subtitle' : 'letter-header__cities'}>
-          {line}
-        </p>
-      ))}
+      <div className="letter-header__logo-panel">
+        {block.logoAsset ? <img className="letter-header__logo" src={block.logoAsset.publicPath} alt={block.logoAsset.altText} /> : null}
+      </div>
+      <div className="letter-header__identity">
+        {block.lines.map((line, index) => (
+          <p key={`${block.id}-${line}-${index}`} className={index === 0 ? 'letter-header__title' : index === 1 ? 'letter-header__subtitle' : 'letter-header__cities'}>
+            {line}
+          </p>
+        ))}
+      </div>
     </header>
   );
 }
@@ -53,12 +67,30 @@ function FirstPageHeaderBlock({ block }: { block: HeaderBlock }) {
 function ContinuationHeaderBlock({ block }: { block: HeaderBlock }) {
   return (
     <header className="continuation-header">
-      {block.lines.map((line, index) => (
-        <p key={`${block.id}-${line}-${index}`} className={index === 0 ? 'continuation-header__line continuation-header__line--meta' : 'continuation-header__line'}>
-          {line}
-        </p>
-      ))}
+      <p className="continuation-header__line continuation-header__line--company">{block.lines[0]}</p>
+      {block.pageNumberText ? <p className="continuation-page-number">{block.pageNumberText}</p> : null}
     </header>
+  );
+}
+
+function ArchivePathBlockView({ block }: { block: ArchivePathBlock }) {
+  return (
+    <section className="archive-path-block">
+      <p>{block.text}</p>
+    </section>
+  );
+}
+
+function ContinuationFooterBlock({ block }: { block: FooterBlock }) {
+  const marker = splitMarkerLine(block.continuationMarkerLine);
+
+  return (
+    <footer className="letter-footer letter-footer--continuation">
+      <p className="letter-footer__continuation-marker">
+        <span>{marker.left}</span>
+        <span>{marker.right}</span>
+      </p>
+    </footer>
   );
 }
 
@@ -94,15 +126,23 @@ function ClientAddressBlock({ block }: { block: MetadataBlock }) {
 }
 
 function ReBlock({ block }: { block: MetadataBlock }) {
+  const reStyle = {
+    ['--re-headline-indent' as string]: `${block.reLayout?.previewHeadlineIndentPx ?? 22}px`,
+    ['--re-label-width' as string]: `${block.reLayout?.previewLabelWidthPx ?? 54}px`,
+    ['--re-detail-indent' as string]: `${block.reLayout?.previewDetailIndentPx ?? 96}px`
+  };
+
   return (
-    <section className="re-block">
-      <div className="re-block__label">Re:</div>
-      <div className="re-block__content">
-        <p className="re-block__subject">{block.subjectLine}</p>
-        {(block.detailLines ?? []).map((line) => (
-          <p key={`${block.id}-${line}`}>{line}</p>
-        ))}
-      </div>
+    <section className="re-block" style={reStyle}>
+      <p className="re-block__headline">
+        <span className="re-block__label">{block.reLabel ?? 'Re:'}</span>
+        <span className="re-block__subject">{block.subjectLine}</span>
+      </p>
+      {(block.detailLines ?? []).map((line) => (
+        <p key={`${block.id}-${line}`} className="re-block__detail">
+          {line}
+        </p>
+      ))}
     </section>
   );
 }
@@ -132,18 +172,27 @@ function SignoffBlockView({ block }: { block: SignoffBlock }) {
 }
 
 function FooterBlockView({ block }: { block: FooterBlock }) {
+  if (block.role === 'continuation_footer') {
+    return <ContinuationFooterBlock block={block} />;
+  }
+
   return (
-    <footer className="letter-footer">
-      {block.archivePathLine ? <p className="letter-footer__archive">{block.archivePathLine}</p> : null}
+    <footer className="letter-footer letter-footer--office">
       {block.offices?.length ? (
-        <div className="letter-footer__offices">
-          {block.offices.map((office) => (
-            <div key={`${block.id}-${office.city}`} className="letter-footer__office">
-              <p>{office.city}</p>
-              <p>{office.phone}</p>
-            </div>
-          ))}
-        </div>
+        <table className="letter-footer__office-table">
+          <tbody>
+            <tr>
+              {block.offices.map((office) => (
+                <td key={`${block.id}-${office.city}-city`}>{office.city}</td>
+              ))}
+            </tr>
+            <tr>
+              {block.offices.map((office) => (
+                <td key={`${block.id}-${office.city}-phone`}>{office.phone}</td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
       ) : null}
     </footer>
   );
@@ -183,16 +232,20 @@ function FirstPageLayout({ page }: { page: ComposedLetterPage }) {
 function ContinuationPageLayout({ page }: { page: ComposedLetterPage }) {
   const signoff = getSignoffBlock(page);
   const paragraphs = getParagraphBlocks(page);
+  const archivePath = page.bodyBlocks.find((block): block is ArchivePathBlock => block.kind === 'archive_path_block');
 
   return (
     <article className="page-shell letter-page letter-page--continuation">
-      <ContinuationHeaderBlock block={page.headerBlock} />
+      <div className="continuation-header-shell">
+        <ContinuationHeaderBlock block={page.headerBlock} />
+      </div>
 
       {paragraphs.map((block) => (
         <BodyParagraphBlock key={block.id} block={block} />
       ))}
 
       {signoff ? <SignoffBlockView block={signoff} /> : null}
+      {archivePath ? <ArchivePathBlockView block={archivePath} /> : null}
 
       <FooterBlockView block={page.footerBlock} />
     </article>
@@ -200,7 +253,11 @@ function ContinuationPageLayout({ page }: { page: ComposedLetterPage }) {
 }
 
 function renderPage(page: ComposedLetterPage) {
-  return page.kind === 'first_page' ? <FirstPageLayout key={page.id} page={page} /> : <ContinuationPageLayout key={page.id} page={page} />;
+  return page.kind === 'first_page' ? (
+    <FirstPageLayout key={page.id} page={page} />
+  ) : (
+    <ContinuationPageLayout key={page.id} page={page} />
+  );
 }
 
 export function LetterPreview() {
