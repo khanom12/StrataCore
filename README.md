@@ -45,4 +45,3 @@ npm test
 - The stable AUTO path is implemented first.
 - Review-sensitive branches remain visible through review flags instead of being silently decided in code.
 - DOCX export is intentionally stubbed so generation logic stays separate from export logic.
-
