@@ -63,11 +63,13 @@ describe('composeLetterDocument', () => {
 
     expect(officeAddressBlock?.lines).toEqual(['2304 - 119 Avenue NE', 'Edmonton, Alberta', 'T6S 1B3']);
     expect(document.pages[1].headerBlock.role).toBe('continuation_subject');
-    expect(document.pages[1].headerBlock.subjectLine).toBe('Foundation Soil Inspection');
+    expect(document.pages[1].headerBlock.subjectLine).toBe('Foundation Soils Inspection');
     expect(document.pages[1].headerBlock.fileNumberLine).toBe('File No. 5478 - 1');
+    expect(document.pages[1].headerBlock.lines[0]).toContain('J.R. Paine & Associates Ltd.');
+    expect(document.pages[1].headerBlock.lines[0]).toContain('Page 2 of 2');
   });
 
-  it('keeps the hidden H number out of visible body blocks while preserving it in the footer archive text', () => {
+  it('keeps the hidden H number out of visible body blocks and visible footer content while preserving it in document metadata', () => {
     const formState = cloneFormState(victoryHomes2026IssuedExample);
     const result = generateLetter(formState);
     const document = composeLetterDocument(formState, result);
@@ -75,7 +77,8 @@ describe('composeLetterDocument', () => {
     const footerText = document.pages.map((page) => page.footerBlock.lines.join('\n')).join('\n');
 
     expect(bodyText).not.toContain('h38566');
-    expect(footerText).toContain('h38566vic.docx');
+    expect(footerText).not.toContain('h38566');
+    expect(document.archivePath).toContain('h38566vic.docx');
   });
 
   it('keeps internal clause and rule ids out of the client-facing composed document text', () => {

@@ -8,8 +8,26 @@ const REGISTRY: SignoffProfile[] = [
     designation: 'E.I.T.'
   },
   {
+    key: 'muhammad-huzaifa',
+    aliases: ['Muhammad Huzaifa', 'Muhammad Huzaifa, E.I.T.'],
+    name: 'Muhammad Huzaifa',
+    designation: 'E.I.T.'
+  },
+  {
+    key: 'darren-wang',
+    aliases: ['Darren Wang', 'Darren Wang, E.I.T.'],
+    name: 'Darren Wang',
+    designation: 'E.I.T.'
+  },
+  {
+    key: 'andrew-klein',
+    aliases: ['Andrew R. Klein', 'Andrew R. Klein, B. Sc.'],
+    name: 'Andrew R. Klein',
+    designation: 'B. Sc.'
+  },
+  {
     key: 'scott-macfarlane',
-    aliases: ['Scott MacFarlane', 'Scott MacFarlane, P.Eng.'],
+    aliases: ['Scott MacFarlane', 'Scott MacFarlane, P.Eng.', 'Scott MacFarlane, P. Eng.'],
     name: 'Scott MacFarlane',
     designation: 'P.Eng.',
     memberNumber: '89667',
@@ -18,7 +36,7 @@ const REGISTRY: SignoffProfile[] = [
   },
   {
     key: 'patrick-winski',
-    aliases: ['Patrick Winski', 'Patrick Winski, P.Eng.'],
+    aliases: ['Patrick Winski', 'Patrick Winski, P.Eng.', 'Patrick Winski, P. Eng.'],
     name: 'Patrick Winski',
     designation: 'P.Eng.',
     memberNumber: '71849',
@@ -34,7 +52,7 @@ const REGISTRY: SignoffProfile[] = [
   },
   {
     key: 'alan-lang',
-    aliases: ['Alan Lang', 'Alan Lang, P.Eng.'],
+    aliases: ['Alan Lang', 'Alan Lang, P.Eng.', 'Al Lang', 'Al Lang, P. Eng.'],
     name: 'Alan Lang',
     designation: 'P.Eng.',
     memberNumber: '46743',
@@ -50,11 +68,19 @@ const REGISTRY: SignoffProfile[] = [
   },
   {
     key: 'john-tsoi',
-    aliases: ['John Tsoi', 'John Tsoi, P.Eng.'],
+    aliases: ['John Tsoi', 'John Tsoi, P.Eng.', 'John Tsoi, P. Eng.'],
     name: 'John Tsoi',
     designation: 'P.Eng.',
     memberNumber: '76087',
     stampAssetKey: 'john-tsoi-stamp'
+  },
+  {
+    key: 'rick-evans',
+    aliases: ['Rick Evans', 'Rick Evans, P.Eng.', 'Rick Evans, P. Eng.'],
+    name: 'Rick Evans',
+    designation: 'P.Eng.',
+    memberNumber: '49679',
+    stampAssetKey: 'rick-evans-stamp'
   }
 ];
 

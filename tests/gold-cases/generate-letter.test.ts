@@ -94,15 +94,17 @@ describe('generateLetter', () => {
 
   it('adds oversized trench remediation to P4 and switches the recommendation to conditional adequacy wording', () => {
     const formState = cloneFormState(genericHappyPath);
-    formState.reportBody.excavation.oversizedTrench = true;
+    formState.reportBody.excavation.oversizedTrenchMode = 'reinforcement';
     formState.reportBody.excavation.trenchLocation = 'front_left';
 
     const result = generateLetter(formState);
+    const p3aText = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P3A')?.text ?? '';
     const p4Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P4')?.text ?? '';
 
-    expect(p4Text).toContain('oversized service trench');
+    expect(p3aText).toContain('oversized cut in the service trench');
+    expect(p3aText).toContain('front garage footing should be reinforced');
     expect(p4Text).toContain('would then be considered adequate');
-    expect(result.reviewFlags.some((flag) => flag.id === 'review-oversized-trench-remediation')).toBe(true);
+    expect(result.visibleSections).toContain('P3A');
   });
 
   it('adds frost reinforcement wording ahead of the base P4 recommendation', () => {
@@ -110,9 +112,10 @@ describe('generateLetter', () => {
     formState.reportBody.excavation.frostDepthMm = 200;
 
     const result = generateLetter(formState);
+    const p3aText = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P3A')?.text ?? '';
     const p4Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P4')?.text ?? '';
 
-    expect(p4Text).toContain('Due to the frost');
+    expect(p3aText).toContain('Due to the frost');
     expect(p4Text).toContain('would then be considered adequate');
   });
 

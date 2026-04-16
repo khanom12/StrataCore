@@ -8,9 +8,11 @@ export const victoryHomes2026IssuedExample: FormState = {
     clientMailingAddress: ['1665 - 91 Street SW', 'Edmonton, Alberta', 'T6X 0W8'],
     headingSuffix: '',
     includeLegalDescription: true,
+    legalDescriptionMode: 'single',
     lot: '110',
     block: '17',
     plan: '252 2250',
+    customLegalDescriptionLines: [],
     streetAddress: '607 - 30 Street SW',
     includeClientJobNumber: false,
     clientJobNumber: '',
@@ -23,6 +25,7 @@ export const victoryHomes2026IssuedExample: FormState = {
   },
   reportBody: {
     inspectionDate: '2026-01-28',
+    structureVariant: 'standard_house',
     excavation: {
       houseFootingCutDepthsM: {
         frontLeftM: 1.7,
@@ -31,16 +34,14 @@ export const victoryHomes2026IssuedExample: FormState = {
         rearRightM: 1.9
       },
       walkoutBasement: false,
-      gardenSuiteMode: false,
       asConstructedMode: 'none',
       constructionStage: 'normal',
       siteHistory: 'none',
-      oversizedTrench: false,
+      oversizedTrenchMode: 'none',
       sloughMaterial: false,
-      loosePeelingMaterial: false,
-      freeWaterInAugerHoles: false,
-      rainSoftenedMode: 'none',
-      exposedElectricalTrench: false,
+      looseMaterialMode: 'none',
+      waterIssueMode: 'none',
+      waterObservedDepthBelowFootingM: undefined,
       groundHeatingSystem: false
     },
     soil: {
@@ -68,12 +69,15 @@ export const victoryHomes2026IssuedExample: FormState = {
         consistencyOrDensity: 'very_stiff',
         traceFeatures: ['oxides']
       },
+      layeredCoverageMode: 'variable_portions',
       fillDepthBelowFootingMm: 200,
       highPlasticWarning: false
     },
     recommendation: {
       footingBasis: 'standard',
-      spreadFootingFamily: 'default_140_kpa'
+      spreadFootingFamily: 'default_140_kpa',
+      drainageUpgradeVariant: 'none',
+      drainageDrawingAttached: false
     },
     garage: {
       mode: 'none',

@@ -4,13 +4,25 @@ import type { FormState, SoilLayerDescriptor } from '@/types/domain';
 
 const STORAGE_KEY = 'stratacore-letter-draft';
 
+const LEGAL_DESCRIPTION_MODES = ['single', 'custom'] as const;
+const STRUCTURE_VARIANTS = ['standard_house', 'rear_garage_garden_suite'] as const;
 const GARAGE_MODES = ['none', 'same_elevation', 'higher_than_house'] as const;
 const AS_CONSTRUCTED_MODES = ['none', 'poured_18in', 'poured_20in', 'poured_24in', 'walls_and_footing'] as const;
 const CONSTRUCTION_STAGES = ['normal', 'nearly_complete', 'framing'] as const;
 const SITE_HISTORY_VALUES = ['none', 'infill', 'knockdown_rebuild'] as const;
 const TRENCH_LOCATIONS = ['front', 'front_left', 'front_right'] as const;
 const RAIN_SOFTENED_MODES = ['none', 'saturated_soft_surficial', 'standing_water_rain_softened'] as const;
+const WATER_ISSUE_MODES = [
+  'none',
+  'free_water_in_auger_holes_basic',
+  'free_water_in_auger_holes_upgraded_drainage',
+  'rain_softened',
+  'exposed_electrical_trench_water_entry'
+] as const;
+const OVERSIZED_TRENCH_MODES = ['none', 'reinforcement', 'fillcrete_gravel', 'precast_review'] as const;
+const LOOSE_MATERIAL_MODES = ['none', 'noted_only', 'standard_cleanup', 'thickened_footing_drainage'] as const;
 const SOIL_LAYERING_MODES = ['single_layer', 'engineered_fill_over_native'] as const;
+const LAYERED_COVERAGE_MODES = ['variable_portions', 'throughout_excavation'] as const;
 const PRIMARY_SOIL_ORIGINS = [
   'native',
   'engineered_fill_jrp',
@@ -39,6 +51,7 @@ const CONSISTENCY_DENSITY_DESCRIPTORS = [
 const TRACE_FEATURES = ['oxides', 'white_precipitates', 'coal', 'gravel', 'organics', 'rootlets'] as const;
 const FOOTING_BASIS_OPTIONS = ['standard', 'modified'] as const;
 const SPREAD_FOOTING_FAMILIES = ['omit', 'default_140_kpa', 'review_100_kpa'] as const;
+const DRAINAGE_UPGRADE_VARIANTS = ['none', 'washed_rock_interior_exterior_two_laterals'] as const;
 const SULPHATE_CLASSES = ['negligible', 'moderate', 'severe', 'very_severe'] as const;
 
 type LegacyScaffoldDraft = {
@@ -78,7 +91,7 @@ type LegacyScaffoldDraft = {
     frostDepthMm?: number;
     freeWaterInAugerHoles?: boolean;
     waterContext?: string;
-    rainSoftenedMode?: FormState['reportBody']['excavation']['rainSoftenedMode'];
+    rainSoftenedMode?: 'none' | 'saturated_soft_surficial' | 'standing_water_rain_softened';
     snowDepthMm?: number;
     exposedElectricalTrench?: boolean;
     groundHeatingSystem?: boolean;
@@ -146,7 +159,7 @@ type InterimNormalizedDraft = {
       frostDepthMm?: number;
       freeWaterInAugerHoles?: boolean;
       waterContext?: string;
-      rainSoftenedMode?: FormState['reportBody']['excavation']['rainSoftenedMode'];
+      rainSoftenedMode?: 'none' | 'saturated_soft_surficial' | 'standing_water_rain_softened';
       snowDepthMm?: number;
       exposedElectricalTrench?: boolean;
       groundHeatingSystem?: boolean;
@@ -264,6 +277,15 @@ function readEnumArray<T extends readonly string[]>(value: unknown, options: T):
   return items.length ? items : undefined;
 }
 
+function readNumberFromString(value: unknown): number | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const match = value.match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : undefined;
+}
+
 function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): FormState {
   const root = isRecord(value) ? value : {};
   const topBlock = isRecord(root.topBlock) ? root.topBlock : {};
@@ -277,6 +299,25 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
   const sulphate = isRecord(reportBody.sulphate) ? reportBody.sulphate : {};
   const winter = isRecord(reportBody.winter) ? reportBody.winter : {};
   const signoff = isRecord(root.signoff) ? root.signoff : {};
+
+  const waterIssueMode =
+    readEnum(excavation.waterIssueMode, WATER_ISSUE_MODES) ??
+    (readBoolean(excavation.freeWaterInAugerHoles)
+      ? 'free_water_in_auger_holes_basic'
+      : readBoolean(excavation.exposedElectricalTrench)
+        ? 'exposed_electrical_trench_water_entry'
+        : readEnum(excavation.rainSoftenedMode, RAIN_SOFTENED_MODES) && readEnum(excavation.rainSoftenedMode, RAIN_SOFTENED_MODES) !== 'none'
+          ? 'rain_softened'
+          : defaultFormState.reportBody.excavation.waterIssueMode);
+  const oversizedTrenchMode =
+    readEnum(excavation.oversizedTrenchMode, OVERSIZED_TRENCH_MODES) ??
+    (readBoolean(excavation.oversizedTrench) ? 'reinforcement' : defaultFormState.reportBody.excavation.oversizedTrenchMode);
+  const looseMaterialMode =
+    readEnum(excavation.looseMaterialMode, LOOSE_MATERIAL_MODES) ??
+    (readBoolean(excavation.loosePeelingMaterial) ? 'thickened_footing_drainage' : defaultFormState.reportBody.excavation.looseMaterialMode);
+  const structureVariant =
+    readEnum(reportBody.structureVariant, STRUCTURE_VARIANTS) ??
+    (readBoolean(excavation.gardenSuiteMode) ? 'rear_garage_garden_suite' : defaultFormState.reportBody.structureVariant);
 
   const normalizedSoil: FormState['reportBody']['soil'] = {
     soilLayeringMode: readEnum(soil.soilLayeringMode, SOIL_LAYERING_MODES) ?? defaultFormState.reportBody.soil.soilLayeringMode,
@@ -299,6 +340,8 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
       readEnum(soil.consistencyOrDensity, CONSISTENCY_DENSITY_DESCRIPTORS) ??
       defaultFormState.reportBody.soil.consistencyOrDensity,
     traceFeatures: readEnumArray(soil.traceFeatures, TRACE_FEATURES) ?? defaultFormState.reportBody.soil.traceFeatures,
+    layeredCoverageMode:
+      readEnum(soil.layeredCoverageMode, LAYERED_COVERAGE_MODES) ?? defaultFormState.reportBody.soil.layeredCoverageMode,
     fillDepthBelowFootingMm: readNumber(soil.fillDepthBelowFootingMm) ?? defaultFormState.reportBody.soil.fillDepthBelowFootingMm,
     highPlasticWarning: readBoolean(soil.highPlasticWarning) ?? defaultFormState.reportBody.soil.highPlasticWarning
   };
@@ -325,9 +368,14 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
       clientMailingAddress: readStringArray(topBlock.clientMailingAddress) ?? defaultFormState.topBlock.clientMailingAddress,
       headingSuffix: readString(topBlock.headingSuffix) ?? defaultFormState.topBlock.headingSuffix,
       includeLegalDescription: readBoolean(topBlock.includeLegalDescription) ?? defaultFormState.topBlock.includeLegalDescription,
+      legalDescriptionMode:
+        readEnum(topBlock.legalDescriptionMode, LEGAL_DESCRIPTION_MODES) ??
+        (readStringArray(topBlock.customLegalDescriptionLines)?.length ? 'custom' : defaultFormState.topBlock.legalDescriptionMode),
       lot: readString(topBlock.lot) ?? defaultFormState.topBlock.lot,
       block: readString(topBlock.block) ?? defaultFormState.topBlock.block,
       plan: readString(topBlock.plan) ?? defaultFormState.topBlock.plan,
+      customLegalDescriptionLines:
+        readStringArray(topBlock.customLegalDescriptionLines) ?? defaultFormState.topBlock.customLegalDescriptionLines,
       streetAddress: readString(topBlock.streetAddress) ?? defaultFormState.topBlock.streetAddress,
       includeClientJobNumber: readBoolean(topBlock.includeClientJobNumber) ?? defaultFormState.topBlock.includeClientJobNumber,
       clientJobNumber: readString(topBlock.clientJobNumber) ?? defaultFormState.topBlock.clientJobNumber,
@@ -340,6 +388,7 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
     },
     reportBody: {
       inspectionDate: readString(reportBody.inspectionDate) ?? defaultFormState.reportBody.inspectionDate,
+      structureVariant,
       excavation: {
         houseFootingCutDepthsM: {
           frontLeftM: readNumber(cutDepths.frontLeftM) ?? defaultFormState.reportBody.excavation.houseFootingCutDepthsM.frontLeftM,
@@ -348,20 +397,21 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
           rearRightM: readNumber(cutDepths.rearRightM) ?? defaultFormState.reportBody.excavation.houseFootingCutDepthsM.rearRightM
         },
         walkoutBasement: readBoolean(excavation.walkoutBasement) ?? defaultFormState.reportBody.excavation.walkoutBasement,
-        gardenSuiteMode: readBoolean(excavation.gardenSuiteMode) ?? defaultFormState.reportBody.excavation.gardenSuiteMode,
         asConstructedMode: readEnum(excavation.asConstructedMode, AS_CONSTRUCTED_MODES) ?? defaultFormState.reportBody.excavation.asConstructedMode,
         constructionStage: readEnum(excavation.constructionStage, CONSTRUCTION_STAGES) ?? defaultFormState.reportBody.excavation.constructionStage,
         siteHistory: readEnum(excavation.siteHistory, SITE_HISTORY_VALUES) ?? defaultFormState.reportBody.excavation.siteHistory,
-        oversizedTrench: readBoolean(excavation.oversizedTrench) ?? defaultFormState.reportBody.excavation.oversizedTrench,
+        oversizedTrenchMode,
         trenchLocation: readEnum(excavation.trenchLocation, TRENCH_LOCATIONS) ?? defaultFormState.reportBody.excavation.trenchLocation,
         sloughMaterial: readBoolean(excavation.sloughMaterial) ?? defaultFormState.reportBody.excavation.sloughMaterial,
-        loosePeelingMaterial: readBoolean(excavation.loosePeelingMaterial) ?? defaultFormState.reportBody.excavation.loosePeelingMaterial,
+        looseMaterialMode,
         frostDepthMm: readNumber(excavation.frostDepthMm) ?? defaultFormState.reportBody.excavation.frostDepthMm,
-        freeWaterInAugerHoles: readBoolean(excavation.freeWaterInAugerHoles) ?? defaultFormState.reportBody.excavation.freeWaterInAugerHoles,
-        waterContext: readString(excavation.waterContext) ?? defaultFormState.reportBody.excavation.waterContext,
-        rainSoftenedMode: readEnum(excavation.rainSoftenedMode, RAIN_SOFTENED_MODES) ?? defaultFormState.reportBody.excavation.rainSoftenedMode,
+        waterIssueMode,
+        waterObservedDepthBelowFootingM:
+          readNumber(excavation.waterObservedDepthBelowFootingM) ??
+          readNumber(excavation.waterContext) ??
+          readNumberFromString(excavation.waterContext) ??
+          defaultFormState.reportBody.excavation.waterObservedDepthBelowFootingM,
         snowDepthMm: readNumber(excavation.snowDepthMm) ?? defaultFormState.reportBody.excavation.snowDepthMm,
-        exposedElectricalTrench: readBoolean(excavation.exposedElectricalTrench) ?? defaultFormState.reportBody.excavation.exposedElectricalTrench,
         groundHeatingSystem: readBoolean(excavation.groundHeatingSystem) ?? defaultFormState.reportBody.excavation.groundHeatingSystem
       },
       soil: normalizedSoil,
@@ -369,7 +419,12 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
         footingBasis: readEnum(recommendation.footingBasis, FOOTING_BASIS_OPTIONS) ?? defaultFormState.reportBody.recommendation.footingBasis,
         spreadFootingFamily:
           readEnum(recommendation.spreadFootingFamily, SPREAD_FOOTING_FAMILIES) ??
-          defaultFormState.reportBody.recommendation.spreadFootingFamily
+          defaultFormState.reportBody.recommendation.spreadFootingFamily,
+        drainageUpgradeVariant:
+          readEnum(recommendation.drainageUpgradeVariant, DRAINAGE_UPGRADE_VARIANTS) ??
+          defaultFormState.reportBody.recommendation.drainageUpgradeVariant,
+        drainageDrawingAttached:
+          readBoolean(recommendation.drainageDrawingAttached) ?? defaultFormState.reportBody.recommendation.drainageDrawingAttached
       },
       garage: {
         mode: readEnum(garage.mode, GARAGE_MODES) ?? defaultFormState.reportBody.garage.mode,
@@ -419,6 +474,14 @@ function isLegacyScaffoldDraft(value: unknown): value is LegacyScaffoldDraft {
 function migrateLegacyScaffoldDraft(legacy: LegacyScaffoldDraft): FormState {
   const minimumCut = readNumber(legacy.p2?.minCutM);
   const maximumCut = readNumber(legacy.p2?.maxCutM);
+  const legacyWaterIssueMode =
+    legacy.p2?.freeWaterInAugerHoles
+      ? 'free_water_in_auger_holes_basic'
+      : legacy.p2?.exposedElectricalTrench
+        ? 'exposed_electrical_trench_water_entry'
+        : legacy.p2?.rainSoftenedMode && legacy.p2.rainSoftenedMode !== 'none'
+          ? 'rain_softened'
+          : undefined;
 
   return mergeWithDefaultFormState({
     topBlock: {
@@ -443,6 +506,7 @@ function migrateLegacyScaffoldDraft(legacy: LegacyScaffoldDraft): FormState {
     },
     reportBody: {
       inspectionDate: legacy.inspectionDate,
+      structureVariant: legacy.p2?.gardenSuiteMode ? 'rear_garage_garden_suite' : undefined,
       excavation: {
         houseFootingCutDepthsM: {
           // Legacy fallback only: Prompt 1 drafts stored min/max cuts instead of corner values.
@@ -452,20 +516,18 @@ function migrateLegacyScaffoldDraft(legacy: LegacyScaffoldDraft): FormState {
           rearRightM: maximumCut
         },
         walkoutBasement: legacy.p2?.walkoutBasement,
-        gardenSuiteMode: legacy.p2?.gardenSuiteMode,
         asConstructedMode: legacy.p2?.asConstructedMode,
         constructionStage: legacy.p2?.constructionStage,
         siteHistory: legacy.p2?.siteHistory,
-        oversizedTrench: legacy.p2?.oversizedTrench,
+        oversizedTrenchMode: legacy.p2?.oversizedTrench ? 'reinforcement' : undefined,
         trenchLocation: legacy.p2?.trenchLocation,
         sloughMaterial: legacy.p2?.sloughMaterial,
-        loosePeelingMaterial: legacy.p2?.loosePeelingMaterial,
+        looseMaterialMode: legacy.p2?.loosePeelingMaterial ? 'thickened_footing_drainage' : undefined,
         frostDepthMm: legacy.p2?.frostDepthMm,
-        freeWaterInAugerHoles: legacy.p2?.freeWaterInAugerHoles,
-        waterContext: legacy.p2?.waterContext,
-        rainSoftenedMode: legacy.p2?.rainSoftenedMode,
+        waterIssueMode: legacyWaterIssueMode,
+        waterObservedDepthBelowFootingM:
+          readNumber(legacy.p2?.waterContext) ?? readNumberFromString(legacy.p2?.waterContext),
         snowDepthMm: legacy.p2?.snowDepthMm,
-        exposedElectricalTrench: legacy.p2?.exposedElectricalTrench,
         groundHeatingSystem: legacy.p2?.groundHeatingSystem
       },
       soil: legacy.p3,
@@ -491,6 +553,15 @@ function migrateLegacyScaffoldDraft(legacy: LegacyScaffoldDraft): FormState {
 }
 
 function migrateInterimNormalizedDraft(interim: InterimNormalizedDraft): FormState {
+  const interimWaterIssueMode =
+    interim.reportBody?.excavation?.freeWaterInAugerHoles
+      ? 'free_water_in_auger_holes_basic'
+      : interim.reportBody?.excavation?.exposedElectricalTrench
+        ? 'exposed_electrical_trench_water_entry'
+        : interim.reportBody?.excavation?.rainSoftenedMode && interim.reportBody.excavation.rainSoftenedMode !== 'none'
+          ? 'rain_softened'
+          : undefined;
+
   return mergeWithDefaultFormState({
     topBlock: {
       letterDate: interim.topBlock?.letterDate,
@@ -514,23 +585,23 @@ function migrateInterimNormalizedDraft(interim: InterimNormalizedDraft): FormSta
     },
     reportBody: {
       inspectionDate: interim.reportBody?.excavation?.inspectionDate,
+      structureVariant: interim.reportBody?.excavation?.gardenSuiteMode ? 'rear_garage_garden_suite' : undefined,
       excavation: {
         houseFootingCutDepthsM: interim.reportBody?.excavation?.houseFootingCutDepthsM,
         walkoutBasement: interim.reportBody?.excavation?.walkoutBasement,
-        gardenSuiteMode: interim.reportBody?.excavation?.gardenSuiteMode,
         asConstructedMode: interim.reportBody?.excavation?.asConstructedMode,
         constructionStage: interim.reportBody?.excavation?.constructionStage,
         siteHistory: interim.reportBody?.excavation?.siteHistory,
-        oversizedTrench: interim.reportBody?.excavation?.oversizedTrench,
+        oversizedTrenchMode: interim.reportBody?.excavation?.oversizedTrench ? 'reinforcement' : undefined,
         trenchLocation: interim.reportBody?.excavation?.trenchLocation,
         sloughMaterial: interim.reportBody?.excavation?.sloughMaterial,
-        loosePeelingMaterial: interim.reportBody?.excavation?.loosePeelingMaterial,
+        looseMaterialMode: interim.reportBody?.excavation?.loosePeelingMaterial ? 'thickened_footing_drainage' : undefined,
         frostDepthMm: interim.reportBody?.excavation?.frostDepthMm,
-        freeWaterInAugerHoles: interim.reportBody?.excavation?.freeWaterInAugerHoles,
-        waterContext: interim.reportBody?.excavation?.waterContext,
-        rainSoftenedMode: interim.reportBody?.excavation?.rainSoftenedMode,
+        waterIssueMode: interimWaterIssueMode,
+        waterObservedDepthBelowFootingM:
+          readNumber(interim.reportBody?.excavation?.waterContext) ??
+          readNumberFromString(interim.reportBody?.excavation?.waterContext),
         snowDepthMm: interim.reportBody?.excavation?.snowDepthMm,
-        exposedElectricalTrench: interim.reportBody?.excavation?.exposedElectricalTrench,
         groundHeatingSystem: interim.reportBody?.excavation?.groundHeatingSystem
       },
       soil: interim.reportBody?.soil,

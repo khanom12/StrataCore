@@ -37,20 +37,42 @@ export function normalizeDependentFormState(formState: FormState): FormState {
   const normalizedTopBlock = {
     ...formState.topBlock,
     clientJobNumber: visibility.topBlock.showClientJobNumber ? formState.topBlock.clientJobNumber : undefined,
-    lot: visibility.topBlock.showLegalDescriptionFields ? formState.topBlock.lot : undefined,
-    block: visibility.topBlock.showLegalDescriptionFields ? formState.topBlock.block : undefined,
-    plan: visibility.topBlock.showLegalDescriptionFields ? formState.topBlock.plan : undefined,
+    lot: visibility.topBlock.showSingleLotFields ? formState.topBlock.lot : undefined,
+    block: visibility.topBlock.showSingleLotFields ? formState.topBlock.block : undefined,
+    plan: visibility.topBlock.showSingleLotFields ? formState.topBlock.plan : undefined,
+    customLegalDescriptionLines: visibility.topBlock.showCustomLegalDescriptionLines
+      ? formState.topBlock.customLegalDescriptionLines?.filter(Boolean)
+      : undefined,
+    streetAddress: visibility.topBlock.showStreetAddress ? formState.topBlock.streetAddress : '',
     subdivision: visibility.topBlock.showSubdivision ? formState.topBlock.subdivision : undefined
   };
   const normalizedExcavation = {
     ...formState.reportBody.excavation,
     trenchLocation: visibility.reportBody.excavation.showTrenchLocation ? formState.reportBody.excavation.trenchLocation : undefined,
-    waterContext: visibility.reportBody.excavation.showWaterContext ? formState.reportBody.excavation.waterContext : undefined
+    waterObservedDepthBelowFootingM: visibility.reportBody.excavation.showWaterIssueDepth
+      ? formState.reportBody.excavation.waterObservedDepthBelowFootingM
+      : undefined
   };
-  const normalizedGarage = {
-    ...formState.reportBody.garage,
-    offsetAboveHouseM: visibility.reportBody.garage.showOffsetAboveHouseM ? formState.reportBody.garage.offsetAboveHouseM : undefined,
-    slabOrganics: visibility.reportBody.garage.showSlabOrganics ? formState.reportBody.garage.slabOrganics : undefined
+  const normalizedGarage = visibility.reportBody.showStandardHouseInputs
+    ? {
+        ...formState.reportBody.garage,
+        offsetAboveHouseM: visibility.reportBody.garage.showOffsetAboveHouseM ? formState.reportBody.garage.offsetAboveHouseM : undefined,
+        slabOrganics: visibility.reportBody.garage.showSlabOrganics ? formState.reportBody.garage.slabOrganics : undefined
+      }
+    : {
+        ...formState.reportBody.garage,
+        mode: 'none' as const,
+        offsetAboveHouseM: undefined,
+        slabOrganics: undefined
+      };
+  const normalizedRecommendation = {
+    ...formState.reportBody.recommendation,
+    drainageUpgradeVariant: visibility.reportBody.recommendation.showDrainageUpgradeVariant
+      ? formState.reportBody.recommendation.drainageUpgradeVariant
+      : 'none',
+    drainageDrawingAttached: visibility.reportBody.recommendation.showDrainageDrawingAttached
+      ? formState.reportBody.recommendation.drainageDrawingAttached
+      : undefined
   };
   const baseSoil = normalizeDescriptorCollections({
     ...formState.reportBody.soil
@@ -66,6 +88,7 @@ export function normalizeDependentFormState(formState: FormState): FormState {
       reportBody: {
         ...formState.reportBody,
         excavation: normalizedExcavation,
+        recommendation: normalizedRecommendation,
         garage: normalizedGarage,
         sulphate: {
           ...formState.reportBody.sulphate,
@@ -75,6 +98,9 @@ export function normalizeDependentFormState(formState: FormState): FormState {
           ...baseSoil,
           engineeredFillLayer: fillLayer,
           underlyingNativeLayer: nativeLayer,
+          layeredCoverageMode: visibility.reportBody.soil.showLayeredCoverageMode
+            ? baseSoil.layeredCoverageMode ?? 'variable_portions'
+            : undefined,
           fillDepthBelowFootingMm: baseSoil.fillDepthBelowFootingMm
         }
       }
@@ -87,6 +113,7 @@ export function normalizeDependentFormState(formState: FormState): FormState {
     reportBody: {
       ...formState.reportBody,
       excavation: normalizedExcavation,
+      recommendation: normalizedRecommendation,
       garage: normalizedGarage,
       sulphate: {
         ...formState.reportBody.sulphate,
@@ -96,6 +123,7 @@ export function normalizeDependentFormState(formState: FormState): FormState {
         ...baseSoil,
         engineeredFillLayer: undefined,
         underlyingNativeLayer: undefined,
+        layeredCoverageMode: undefined,
         fillDepthBelowFootingMm: undefined
       }
     }

@@ -51,8 +51,11 @@ function FirstPageHeaderBlock({ block }: { block: HeaderBlock }) {
 function ContinuationHeaderBlock({ block }: { block: HeaderBlock }) {
   return (
     <header className="continuation-header">
-      <span>{block.subjectLine ?? block.lines[0]}</span>
-      <span>{block.fileNumberLine}</span>
+      {block.lines.map((line, index) => (
+        <p key={`${block.id}-${line}-${index}`} className={index === 0 ? 'continuation-header__line continuation-header__line--meta' : 'continuation-header__line'}>
+          {line}
+        </p>
+      ))}
     </header>
   );
 }
@@ -118,12 +121,12 @@ function SignoffBlockView({ block }: { block: SignoffBlock }) {
       {block.lines.map((line) => (
         <div key={`${block.id}-${line.label}-${line.value}`} className="signoff-block__line-group">
           <p className="signoff-block__label">{line.label}</p>
-          <p>{line.value}</p>
+          <p className="signoff-block__value">{line.value}</p>
         </div>
       ))}
-      <p>{block.engineerMemberNumberLine}</p>
-      <p>{block.stampPlaceholderLine}</p>
-      <p>{block.permitToPracticeLine}</p>
+      <p className="signoff-block__supporting">{block.engineerMemberNumberLine}</p>
+      <p className="signoff-block__supporting">{block.stampPlaceholderLine}</p>
+      <p className="signoff-block__supporting">{block.permitToPracticeLine}</p>
     </section>
   );
 }

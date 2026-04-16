@@ -31,10 +31,27 @@ describe('form dependency model', () => {
 
     const normalized = normalizeDependentFormState(formState);
 
-    expect(getFormInputVisibility(normalized).topBlock.showLegalDescriptionFields).toBe(false);
+    expect(getFormInputVisibility(normalized).topBlock.showLegalDescriptionMode).toBe(false);
+    expect(getFormInputVisibility(normalized).topBlock.showSingleLotFields).toBe(false);
     expect(normalized.topBlock.lot).toBeUndefined();
     expect(normalized.topBlock.block).toBeUndefined();
     expect(normalized.topBlock.plan).toBeUndefined();
+  });
+
+  it('switches to custom legal-description mode and clears stale single-lot values', () => {
+    const formState = cloneFormState(genericHappyPath);
+    formState.topBlock.legalDescriptionMode = 'custom';
+    formState.topBlock.customLegalDescriptionLines = ['Lots 1 & 2, Block 3, Plan 123 4567', '12 & 14 Example Street'];
+
+    const normalized = normalizeDependentFormState(formState);
+
+    expect(getFormInputVisibility(normalized).topBlock.showCustomLegalDescriptionLines).toBe(true);
+    expect(getFormInputVisibility(normalized).topBlock.showSingleLotFields).toBe(false);
+    expect(normalized.topBlock.lot).toBeUndefined();
+    expect(normalized.topBlock.block).toBeUndefined();
+    expect(normalized.topBlock.plan).toBeUndefined();
+    expect(normalized.topBlock.streetAddress).toBe('');
+    expect(normalized.topBlock.customLegalDescriptionLines).toEqual(['Lots 1 & 2, Block 3, Plan 123 4567', '12 & 14 Example Street']);
   });
 
   it('hides and clears subdivision when it is not included', () => {
@@ -129,9 +146,11 @@ describe('form dependency model', () => {
         includeClientJobNumber: false,
         clientJobNumber: 'STALE-JOB',
         includeLegalDescription: false,
+        legalDescriptionMode: 'custom',
         lot: '99',
         block: '77',
         plan: 'OLD PLAN',
+        customLegalDescriptionLines: ['Legacy multi-lot line'],
         includeSubdivision: false,
         subdivision: 'STALE SUBDIVISION'
       },
@@ -140,11 +159,12 @@ describe('form dependency model', () => {
       },
       reportBody: {
         inspectionDate: '2026-04-20',
+        structureVariant: 'rear_garage_garden_suite',
         excavation: {
-          oversizedTrench: false,
+          oversizedTrenchMode: 'none',
           trenchLocation: 'front_left',
-          freeWaterInAugerHoles: false,
-          waterContext: 'below footing elevation',
+          waterIssueMode: 'none',
+          waterObservedDepthBelowFootingM: 0.3,
           houseFootingCutDepthsM: {
             frontLeftM: 1.5,
             frontRightM: 1.5,
@@ -170,10 +190,12 @@ describe('form dependency model', () => {
           }
         },
         recommendation: {
-          footingBasis: 'standard'
+          footingBasis: 'standard',
+          drainageUpgradeVariant: 'washed_rock_interior_exterior_two_laterals',
+          drainageDrawingAttached: true
         },
         garage: {
-          mode: 'none',
+          mode: 'higher_than_house',
           offsetAboveHouseM: 0.5,
           slabOrganics: true
         },
@@ -191,11 +213,14 @@ describe('form dependency model', () => {
     expect(normalized.topBlock.lot).toBeUndefined();
     expect(normalized.topBlock.block).toBeUndefined();
     expect(normalized.topBlock.plan).toBeUndefined();
+    expect(normalized.topBlock.customLegalDescriptionLines).toBeUndefined();
     expect(normalized.topBlock.subdivision).toBeUndefined();
     expect(normalized.reportBody.excavation.trenchLocation).toBeUndefined();
-    expect(normalized.reportBody.excavation.waterContext).toBeUndefined();
+    expect(normalized.reportBody.excavation.waterObservedDepthBelowFootingM).toBeUndefined();
     expect(normalized.reportBody.garage.offsetAboveHouseM).toBeUndefined();
     expect(normalized.reportBody.garage.slabOrganics).toBeUndefined();
+    expect(normalized.reportBody.recommendation.drainageUpgradeVariant).toBe('none');
+    expect(normalized.reportBody.recommendation.drainageDrawingAttached).toBeUndefined();
     expect(normalized.reportBody.sulphate.sulphateClass).toBeUndefined();
     expect(normalized.reportBody.soil.engineeredFillLayer).toBeUndefined();
     expect(normalized.reportBody.soil.underlyingNativeLayer).toBeUndefined();

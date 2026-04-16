@@ -1,6 +1,7 @@
 import type { FormState } from '@/types/domain';
 
 import { genericHappyPath } from '@/lib/reference-cases/generic-happy-path';
+import { getLegacyOutputCase, getLegacyOutputCaseMatrixSummary, legacyOutputCases } from '@/lib/reference-cases/legacy-output-cases';
 import { victoryHomes2026IssuedExample } from '@/lib/reference-cases/victory-homes-2026';
 
 export interface ReferenceCasePreset {
@@ -52,3 +53,5 @@ export function identifyReferenceCasePreset(formState: FormState): ReferenceCase
 
   return referenceCasePresets.find((preset) => stableSerialize(preset.formState) === serializedFormState);
 }
+
+export { getLegacyOutputCase, getLegacyOutputCaseMatrixSummary, legacyOutputCases };

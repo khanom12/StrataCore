@@ -1,4 +1,4 @@
-import type { HouseFootingCutDepthsM } from '@/types/domain';
+import type { HouseFootingCutDepthsM, StructureVariant } from '@/types/domain';
 
 interface CutRange {
   minimumM?: number;
@@ -100,4 +100,12 @@ export function getCalendarYear(dateString: string): number {
   }
 
   return date.getUTCFullYear();
+}
+
+export function getFoundationInspectionSubjectLine(headingSuffix: string | undefined, structureVariant: StructureVariant): string {
+  if (structureVariant === 'rear_garage_garden_suite') {
+    return 'Foundation Soil Inspection – Garden Suite';
+  }
+
+  return headingSuffix ? `Foundation Soils Inspection – ${headingSuffix}` : 'Foundation Soils Inspection';
 }

@@ -3,6 +3,7 @@ export type SectionId =
   | 'P1'
   | 'P2'
   | 'P3'
+  | 'P3A'
   | 'P4'
   | 'P5'
   | 'P6'
@@ -43,6 +44,8 @@ export interface ReviewFlag {
   ruleRefs: RuleRef[];
 }
 
+export type LegalDescriptionMode = 'single' | 'custom';
+
 export interface TopBlockInputs {
   letterDate: string;
   fileNumber: string;
@@ -50,9 +53,11 @@ export interface TopBlockInputs {
   clientMailingAddress: string[];
   headingSuffix?: string;
   includeLegalDescription: boolean;
+  legalDescriptionMode: LegalDescriptionMode;
   lot?: string;
   block?: string;
   plan?: string;
+  customLegalDescriptionLines?: string[];
   streetAddress: string;
   includeClientJobNumber: boolean;
   clientJobNumber?: string;
@@ -77,25 +82,30 @@ export type AsConstructedMode = 'none' | 'poured_18in' | 'poured_20in' | 'poured
 export type ConstructionStage = 'normal' | 'nearly_complete' | 'framing';
 export type SiteHistory = 'none' | 'infill' | 'knockdown_rebuild';
 export type TrenchLocation = 'front' | 'front_left' | 'front_right';
-export type RainSoftenedMode = 'none' | 'saturated_soft_surficial' | 'standing_water_rain_softened';
+export type StructureVariant = 'standard_house' | 'rear_garage_garden_suite';
+export type WaterIssueMode =
+  | 'none'
+  | 'free_water_in_auger_holes_basic'
+  | 'free_water_in_auger_holes_upgraded_drainage'
+  | 'rain_softened'
+  | 'exposed_electrical_trench_water_entry';
+export type OversizedTrenchMode = 'none' | 'reinforcement' | 'fillcrete_gravel' | 'precast_review';
+export type LooseMaterialMode = 'none' | 'noted_only' | 'standard_cleanup' | 'thickened_footing_drainage';
 
 export interface ExcavationInputs {
   houseFootingCutDepthsM: HouseFootingCutDepthsM;
   walkoutBasement?: boolean;
-  gardenSuiteMode?: boolean;
   asConstructedMode?: AsConstructedMode;
   constructionStage?: ConstructionStage;
   siteHistory?: SiteHistory;
-  oversizedTrench?: boolean;
+  oversizedTrenchMode?: OversizedTrenchMode;
   trenchLocation?: TrenchLocation;
   sloughMaterial?: boolean;
-  loosePeelingMaterial?: boolean;
+  looseMaterialMode?: LooseMaterialMode;
   frostDepthMm?: number;
-  freeWaterInAugerHoles?: boolean;
-  waterContext?: string;
-  rainSoftenedMode?: RainSoftenedMode;
+  waterIssueMode?: WaterIssueMode;
+  waterObservedDepthBelowFootingM?: number;
   snowDepthMm?: number;
-  exposedElectricalTrench?: boolean;
   groundHeatingSystem?: boolean;
 }
 
@@ -166,16 +176,20 @@ export interface SoilInputs {
   traceFeatures?: TraceFeature[];
   engineeredFillLayer?: SoilLayerDescriptor;
   underlyingNativeLayer?: SoilLayerDescriptor;
+  layeredCoverageMode?: 'variable_portions' | 'throughout_excavation';
   fillDepthBelowFootingMm?: number;
   highPlasticWarning?: boolean;
 }
 
 export type FootingBasis = 'standard' | 'modified';
 export type SpreadFootingFamily = 'omit' | 'default_140_kpa' | 'review_100_kpa';
+export type DrainageUpgradeVariant = 'none' | 'washed_rock_interior_exterior_two_laterals';
 
 export interface RecommendationInputs {
   footingBasis: FootingBasis;
   spreadFootingFamily: SpreadFootingFamily;
+  drainageUpgradeVariant: DrainageUpgradeVariant;
+  drainageDrawingAttached?: boolean;
 }
 
 export type SulphateClass = 'negligible' | 'moderate' | 'severe' | 'very_severe';
@@ -191,6 +205,7 @@ export interface WinterInputs {
 
 export interface ReportBodyInputs {
   inspectionDate: string;
+  structureVariant: StructureVariant;
   excavation: ExcavationInputs;
   soil: SoilInputs;
   recommendation: RecommendationInputs;

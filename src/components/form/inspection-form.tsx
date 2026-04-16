@@ -279,9 +279,17 @@ export function InspectionForm() {
             value={formState.reportBody.inspectionDate}
             onChange={(value) => updateReportBody('inspectionDate', value)}
           />
+          <SelectField
+            label="Structure variant"
+            value={formState.reportBody.structureVariant}
+            onChange={(value) => updateReportBody('structureVariant', value as FormState['reportBody']['structureVariant'])}
+            options={[
+              ['standard_house', 'Standard house letter'],
+              ['rear_garage_garden_suite', 'Rear garage garden suite letter']
+            ]}
+          />
           <Field label="File number" value={formState.topBlock.fileNumber} onChange={(value) => updateTopBlock('fileNumber', value)} />
           <Field label="Client name" value={formState.topBlock.clientName} onChange={(value) => updateTopBlock('clientName', value)} />
-          <Field label="Street address" value={formState.topBlock.streetAddress} onChange={(value) => updateTopBlock('streetAddress', value)} />
           <Field label="Heading suffix" value={formState.topBlock.headingSuffix ?? ''} onChange={(value) => updateTopBlock('headingSuffix', value)} />
           <Field label="Municipality" value={formState.topBlock.municipality} onChange={(value) => updateTopBlock('municipality', value)} />
           <TextAreaField
@@ -295,17 +303,39 @@ export function InspectionForm() {
             checked={formState.topBlock.includeLegalDescription}
             onChange={(checked) => updateTopBlock('includeLegalDescription', checked)}
           />
+          {dependencyVisibility.topBlock.showLegalDescriptionMode ? (
+            <SelectField
+              label="Legal description mode"
+              value={formState.topBlock.legalDescriptionMode}
+              onChange={(value) => updateTopBlock('legalDescriptionMode', value as FormState['topBlock']['legalDescriptionMode'])}
+              options={[
+                ['single', 'Standard single lot / block / plan'],
+                ['custom', 'Custom or multiple lots']
+              ]}
+            />
+          ) : null}
           <CheckboxField
             label="Include subdivision"
             checked={formState.topBlock.includeSubdivision}
             onChange={(checked) => updateTopBlock('includeSubdivision', checked)}
           />
-          {dependencyVisibility.topBlock.showLegalDescriptionFields ? (
+          {dependencyVisibility.topBlock.showSingleLotFields ? (
             <>
               <Field label="Lot" value={formState.topBlock.lot ?? ''} onChange={(value) => updateTopBlock('lot', value)} />
               <Field label="Block" value={formState.topBlock.block ?? ''} onChange={(value) => updateTopBlock('block', value)} />
               <Field label="Plan" value={formState.topBlock.plan ?? ''} onChange={(value) => updateTopBlock('plan', value)} />
+              {dependencyVisibility.topBlock.showStreetAddress ? (
+                <Field label="Street address" value={formState.topBlock.streetAddress} onChange={(value) => updateTopBlock('streetAddress', value)} />
+              ) : null}
             </>
+          ) : null}
+          {dependencyVisibility.topBlock.showCustomLegalDescriptionLines ? (
+            <TextAreaField
+              className="full"
+              label="Custom legal description lines"
+              value={(formState.topBlock.customLegalDescriptionLines ?? []).join('\n')}
+              onChange={(value) => updateTopBlock('customLegalDescriptionLines', value.split('\n').map((line) => line.trim()).filter(Boolean))}
+            />
           ) : null}
           <CheckboxField
             label="Include client job number"
@@ -401,10 +431,16 @@ export function InspectionForm() {
               ['knockdown_rebuild', 'Knockdown / rebuild']
             ]}
           />
-          <CheckboxField
-            label="Oversized trench"
-            checked={Boolean(formState.reportBody.excavation.oversizedTrench)}
-            onChange={(checked) => updateExcavation('oversizedTrench', checked)}
+          <SelectField
+            label="Oversized trench mode"
+            value={formState.reportBody.excavation.oversizedTrenchMode ?? 'none'}
+            onChange={(value) => updateExcavation('oversizedTrenchMode', value as FormState['reportBody']['excavation']['oversizedTrenchMode'])}
+            options={[
+              ['none', 'None'],
+              ['reinforcement', 'Reinforcement path'],
+              ['fillcrete_gravel', 'Fillcrete / gravel remediation'],
+              ['precast_review', 'Alternate pre-cast review path']
+            ]}
           />
           {dependencyVisibility.reportBody.excavation.showTrenchLocation ? (
             <SelectField
@@ -418,10 +454,16 @@ export function InspectionForm() {
               ]}
             />
           ) : null}
-          <CheckboxField
-            label="Loose peeling material"
-            checked={Boolean(formState.reportBody.excavation.loosePeelingMaterial)}
-            onChange={(checked) => updateExcavation('loosePeelingMaterial', checked)}
+          <SelectField
+            label="Loose material mode"
+            value={formState.reportBody.excavation.looseMaterialMode ?? 'none'}
+            onChange={(value) => updateExcavation('looseMaterialMode', value as FormState['reportBody']['excavation']['looseMaterialMode'])}
+            options={[
+              ['none', 'None'],
+              ['noted_only', 'Noted only'],
+              ['standard_cleanup', 'Standard cleanup'],
+              ['thickened_footing_drainage', 'Thickened footing / drainage care']
+            ]}
           />
           <CheckboxField
             label="Slough material"
@@ -435,32 +477,25 @@ export function InspectionForm() {
             onChange={(value) => updateExcavation('frostDepthMm', value ? Number(value) : undefined)}
           />
           <SelectField
-            label="Rain-softened mode"
-            value={formState.reportBody.excavation.rainSoftenedMode ?? 'none'}
-            onChange={(value) => updateExcavation('rainSoftenedMode', value as FormState['reportBody']['excavation']['rainSoftenedMode'])}
+            label="Water / issue mode"
+            value={formState.reportBody.excavation.waterIssueMode ?? 'none'}
+            onChange={(value) => updateExcavation('waterIssueMode', value as FormState['reportBody']['excavation']['waterIssueMode'])}
             options={[
               ['none', 'None'],
-              ['saturated_soft_surficial', 'Saturated soft surficial material'],
-              ['standing_water_rain_softened', 'Standing water after rain']
+              ['free_water_in_auger_holes_basic', 'Free water in auger holes'],
+              ['free_water_in_auger_holes_upgraded_drainage', 'Free water with upgraded drainage'],
+              ['rain_softened', 'Rain-softened / saturated material'],
+              ['exposed_electrical_trench_water_entry', 'Water entry via exposed trench']
             ]}
           />
-          <CheckboxField
-            label="Free water in auger holes"
-            checked={Boolean(formState.reportBody.excavation.freeWaterInAugerHoles)}
-            onChange={(checked) => updateExcavation('freeWaterInAugerHoles', checked)}
-          />
-          {dependencyVisibility.reportBody.excavation.showWaterContext ? (
+          {dependencyVisibility.reportBody.excavation.showWaterIssueDepth ? (
             <Field
-              label="Free-water context"
-              value={formState.reportBody.excavation.waterContext ?? ''}
-              onChange={(value) => updateExcavation('waterContext', value)}
+              label="Observed water depth below footing (m)"
+              type="number"
+              value={formState.reportBody.excavation.waterObservedDepthBelowFootingM?.toString() ?? ''}
+              onChange={(value) => updateExcavation('waterObservedDepthBelowFootingM', value ? Number(value) : undefined)}
             />
           ) : null}
-          <CheckboxField
-            label="Exposed electrical trench"
-            checked={Boolean(formState.reportBody.excavation.exposedElectricalTrench)}
-            onChange={(checked) => updateExcavation('exposedElectricalTrench', checked)}
-          />
           <Field
             label="Snow depth (mm)"
             type="number"
@@ -496,6 +531,15 @@ export function InspectionForm() {
           />
           {isLayeredSoil ? (
             <>
+              <SelectField
+                label="Layered coverage mode"
+                value={formState.reportBody.soil.layeredCoverageMode ?? 'variable_portions'}
+                onChange={(value) => updateSoil('layeredCoverageMode', value as NonNullable<SoilInputs['layeredCoverageMode']>)}
+                options={[
+                  ['variable_portions', 'Variable portions of excavation'],
+                  ['throughout_excavation', 'Throughout excavation']
+                ]}
+              />
               <Field
                 label="Fill depth below footing (mm)"
                 type="number"
@@ -676,16 +720,42 @@ export function InspectionForm() {
               ['review_100_kpa', '100 kPa review branch']
             ]}
           />
-          <SelectField
-            label="Garage mode"
-            value={formState.reportBody.garage.mode}
-            onChange={(value) => updateGarage('mode', value as FormState['reportBody']['garage']['mode'])}
-            options={[
-              ['none', 'No garage'],
-              ['same_elevation', 'Garage at same elevation'],
-              ['higher_than_house', 'Garage above house excavation']
-            ]}
-          />
+          {dependencyVisibility.reportBody.recommendation.showDrainageUpgradeVariant ? (
+            <SelectField
+              label="Drainage upgrade variant"
+              value={formState.reportBody.recommendation.drainageUpgradeVariant}
+              onChange={(value) =>
+                updateRecommendation('drainageUpgradeVariant', value as FormState['reportBody']['recommendation']['drainageUpgradeVariant'])
+              }
+              options={[
+                ['none', 'None'],
+                ['washed_rock_interior_exterior_two_laterals', 'Washed rock slab base + interior/exterior tile + two laterals']
+              ]}
+            />
+          ) : null}
+          {dependencyVisibility.reportBody.recommendation.showDrainageDrawingAttached ? (
+            <CheckboxField
+              label="Drainage drawing attached note"
+              checked={Boolean(formState.reportBody.recommendation.drainageDrawingAttached)}
+              onChange={(checked) => updateRecommendation('drainageDrawingAttached', checked)}
+            />
+          ) : null}
+          {dependencyVisibility.reportBody.garage.showGarageMode ? (
+            <SelectField
+              label="Garage mode"
+              value={formState.reportBody.garage.mode}
+              onChange={(value) => updateGarage('mode', value as FormState['reportBody']['garage']['mode'])}
+              options={[
+                ['none', 'No garage'],
+                ['same_elevation', 'Garage at same elevation'],
+                ['higher_than_house', 'Garage above house excavation']
+              ]}
+            />
+          ) : (
+            <div className="field full">
+              <p className="note">Garage recommendation stays derived-only. The rear garage garden suite variant suppresses the ordinary attached-garage P5 path.</p>
+            </div>
+          )}
           {dependencyVisibility.reportBody.garage.showOffsetAboveHouseM ? (
             <Field
               label="Garage offset above house (m)"

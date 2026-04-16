@@ -83,13 +83,13 @@ function buildSimpleParagraph(
 function buildHeader(block: HeaderBlock) {
   if (block.role === 'continuation_subject') {
     return new Header({
-      children: [
+      children: block.lines.map((line, index) =>
         buildParagraph({
-          spacing: { after: 80 },
+          spacing: { after: index === block.lines.length - 1 ? 80 : 20 },
           tabStops: RIGHT_TAB_STOP,
-          children: [buildRun(`${block.subjectLine ?? ''}\t${block.fileNumberLine ?? ''}`, { size: BODY_SIZE })]
+          children: [buildRun(line, { size: BODY_SIZE })]
         })
-      ]
+      )
     });
   }
 
@@ -109,22 +109,16 @@ function buildFooter(block: FooterBlock) {
   const children: Paragraph[] = [];
 
   if (block.offices?.length) {
-    children.push(
-      buildParagraph({
-        alignment: AlignmentType.CENTER,
-        tabStops: FOOTER_COLUMN_TABS,
-        spacing: { after: 20 },
-        children: [buildRun(block.offices.map((office) => office.city).join('\t'), { size: FOOTER_SIZE })]
-      })
-    );
-    children.push(
-      buildParagraph({
-        alignment: AlignmentType.CENTER,
-        tabStops: FOOTER_COLUMN_TABS,
-        spacing: { after: 60 },
-        children: [buildRun(block.offices.map((office) => office.phone).join('\t'), { size: FOOTER_SIZE })]
-      })
-    );
+    for (const office of block.offices) {
+      children.push(
+        buildParagraph({
+          alignment: AlignmentType.CENTER,
+          tabStops: FOOTER_COLUMN_TABS,
+          spacing: { after: 0 },
+          children: [buildRun(`${office.city}\t${office.phone}`, { size: FOOTER_SIZE })]
+        })
+      );
+    }
   }
 
   if (block.archivePathLine) {
@@ -195,8 +189,8 @@ function buildBodyParagraph(block: ParagraphBlock) {
   return buildParagraph({
     alignment: block.role === 'closing' ? AlignmentType.LEFT : AlignmentType.JUSTIFIED,
     spacing: {
-      after: block.role === 'closing' ? 160 : 180,
-      line: 300
+      after: block.role === 'closing' ? 140 : 140,
+      line: 280
     },
     children: [buildRun(block.text)]
   });
@@ -205,7 +199,7 @@ function buildBodyParagraph(block: ParagraphBlock) {
 function buildSignoffParagraphs(block: SignoffBlock): Paragraph[] {
   const paragraphs: Paragraph[] = [
     buildSimpleParagraph(block.salutationLine, {
-      after: 140
+      after: 120
     }),
     buildSimpleParagraph(block.organization, {
       after: 180
@@ -220,14 +214,14 @@ function buildSignoffParagraphs(block: SignoffBlock): Paragraph[] {
     );
     paragraphs.push(
       buildSimpleParagraph(line.value, {
-        after: 120,
-        indent: { left: 240 }
+        after: 110,
+        indent: { left: 180 }
       })
     );
   }
 
-  paragraphs.push(buildSimpleParagraph(block.engineerMemberNumberLine, { after: 80 }));
-  paragraphs.push(buildSimpleParagraph(block.stampPlaceholderLine, { after: 80 }));
+  paragraphs.push(buildSimpleParagraph(block.engineerMemberNumberLine, { after: 70 }));
+  paragraphs.push(buildSimpleParagraph(block.stampPlaceholderLine, { after: 70 }));
   paragraphs.push(buildSimpleParagraph(block.permitToPracticeLine, { after: 0 }));
   return paragraphs;
 }

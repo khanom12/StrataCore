@@ -8,9 +8,11 @@ export const genericHappyPath: FormState = {
     clientMailingAddress: ['100 Example Avenue SW', 'Edmonton, Alberta', 'T6X 0X0'],
     headingSuffix: '',
     includeLegalDescription: true,
+    legalDescriptionMode: 'single',
     lot: '10',
     block: '2',
     plan: '242 1234',
+    customLegalDescriptionLines: [],
     streetAddress: '10 Example Crescent SW',
     includeClientJobNumber: false,
     clientJobNumber: '',
@@ -23,6 +25,7 @@ export const genericHappyPath: FormState = {
   },
   reportBody: {
     inspectionDate: '2026-04-10',
+    structureVariant: 'standard_house',
     excavation: {
       houseFootingCutDepthsM: {
         frontLeftM: 1.4,
@@ -31,16 +34,14 @@ export const genericHappyPath: FormState = {
         rearRightM: 1.8
       },
       walkoutBasement: false,
-      gardenSuiteMode: false,
       asConstructedMode: 'none',
       constructionStage: 'normal',
       siteHistory: 'none',
-      oversizedTrench: false,
+      oversizedTrenchMode: 'none',
       sloughMaterial: false,
-      loosePeelingMaterial: false,
-      freeWaterInAugerHoles: false,
-      rainSoftenedMode: 'none',
-      exposedElectricalTrench: false,
+      looseMaterialMode: 'none',
+      waterIssueMode: 'none',
+      waterObservedDepthBelowFootingM: undefined,
       groundHeatingSystem: false
     },
     soil: {
@@ -56,7 +57,9 @@ export const genericHappyPath: FormState = {
     },
     recommendation: {
       footingBasis: 'standard',
-      spreadFootingFamily: 'default_140_kpa'
+      spreadFootingFamily: 'default_140_kpa',
+      drainageUpgradeVariant: 'none',
+      drainageDrawingAttached: false
     },
     garage: {
       mode: 'same_elevation',

@@ -12,6 +12,7 @@ Current scope in this prototype:
 - seed-backed clause/rule usage
 - first-pass DOCX export built from the composed letter shell
 - explicit reference presets, including the Victory Homes 2026 issued-example fixture
+- historical output letters used as regression fixtures for real JR Paine wording and shell fidelity
 
 ## Run locally
 
@@ -47,10 +48,10 @@ npm run dev
 4. Run `npm run dev`
 5. Open `/form` and `/preview` in the local Next.js URL shown in the terminal
 6. On `/form`, load `Victory Homes 2026`
-7. On `/form`, verify dependency behavior by toggling legal description, client job number, subdivision, garage mode, sulphate paragraph, and layered soil mode; hidden child fields should disappear and clear cleanly
-8. Save a draft from `/form`, then confirm `/preview` shows the formatted draft first, with the right-aligned office/date shell, structured Re block, separated signoff labels, and a secondary analyst/debug panel
+7. On `/form`, verify dependency behavior by toggling legal description mode, client job number, subdivision, garage mode, sulphate paragraph, water issue mode, and layered soil mode; hidden child fields should disappear and clear cleanly
+8. Save a draft from `/form`, then confirm `/preview` shows the formatted draft first, with the centered JR Paine identity block, right-aligned office/date shell, structured Re block, continuation header, separated signoff lines, and a secondary analyst/debug panel
 9. Click `Download DOCX` on `/preview` and expect a real `.docx` file to download
-10. Compare the exported shell and preview spacing/alignment/signoff structure against the Victory reference standard
+10. Compare the exported shell and preview spacing/alignment/signoff structure against the Victory reference standard and the historical letters in `reference-letters/legacy`
 11. POST to `/api/generate` and expect normalized generation JSON
 12. POST to `/api/export` and expect a DOCX attachment response
 
@@ -63,14 +64,16 @@ npm run dev
 
 ## Dependency model
 
-- Reveal / hide child inputs: client job number, legal description fields, subdivision, trench location, free-water context, garage offset/slab organics, sulphate class, and layered-soil children all follow one shared dependency matrix.
+- Reveal / hide child inputs: client job number, single-lot vs custom legal description fields, subdivision, trench location, water-issue depth/drainage fields, garage offset/slab organics, sulphate class, and layered-soil children all follow one shared dependency matrix.
 - Derived-only downstream logic: garage paragraph derivation and P4 advisory triggers stay generated from the current excavation/recommendation state instead of exposing duplicate operator overrides.
 - Top-level document modes: standard FSI is the only active mode in V1; correction/rewrite and frost follow-up remain explicitly deferred whole-letter modes.
-- Deferred/manual branches: garden suite and ground-heating branches stay preserved in the domain but out of the active V1 operator form until the office confirms the correct workflow.
+- Deferred/manual branches: ground-heating and other review-only edge branches stay preserved in the domain until the office confirms the exact wording family.
 
 ## Reference standard
 
 - The authoritative reference preset is `Victory Homes 2026`, pinned to the issued-example shell, filename/archive path, and signoff pattern.
+- Historical output letters in `/Users/omar/Projects/StrataCore/reference-letters/legacy` are part of the regression strategy. Add a matching manifest entry in `/Users/omar/Projects/StrataCore/src/lib/reference-cases/legacy-output-cases.ts` when a new legacy letter is added.
+- The lightweight operating note for those fixtures lives in `/Users/omar/Projects/StrataCore/docs/legacy-output-cases/README.md`.
 
 ## Known limitations
 
@@ -78,5 +81,6 @@ npm run dev
 - Review-sensitive branches remain visible through review flags instead of being silently decided in code.
 - DOCX export is code-generated and materially closer to the office shell, but final logo/stamp assets and template-perfect pagination are still out of scope.
 - Engineer stamp and permit-to-practice assets are still text placeholders until the real office image assets are added.
+- Historical cases marked `partial` in the legacy-output matrix still need tighter wording fidelity before they should be treated as fully office-equivalent.
 - Review-only edge families such as engineered fill by others / unknown, rare remediation packages, and spread-footing conflicts remain intentionally deferred for analyst review.
 - Correction/rewrite and frost follow-up whole-letter modes remain intentionally deferred.

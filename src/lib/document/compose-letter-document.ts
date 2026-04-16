@@ -1,4 +1,5 @@
 import { buildSignoffModel } from '@/lib/signoff/build-signoff-model';
+import { getFoundationInspectionSubjectLine } from '@/lib/domain/report-helpers';
 import { formatSignoffName } from '@/lib/signoff/engineer-registry';
 import { getReportSectionDefinition, toClauseRefs, toRuleRefs } from '@/lib/seed/source-data';
 import type { FormState, GeneratedParagraph, GenerationResult, SectionId } from '@/types/domain';
@@ -13,7 +14,24 @@ import type {
 } from '@/types/document';
 
 function getSubjectLine(formState: FormState) {
-  return `Foundation Soil Inspection${formState.topBlock.headingSuffix ? ` - ${formState.topBlock.headingSuffix}` : ''}`;
+  return getFoundationInspectionSubjectLine(formState.topBlock.headingSuffix, formState.reportBody.structureVariant);
+}
+
+function buildLegalDescriptionLines(formState: FormState) {
+  if (!formState.topBlock.includeLegalDescription) {
+    return formState.topBlock.streetAddress ? [formState.topBlock.streetAddress] : [];
+  }
+
+  if (formState.topBlock.legalDescriptionMode === 'custom') {
+    return formState.topBlock.customLegalDescriptionLines?.filter(Boolean) ?? [];
+  }
+
+  return [
+    formState.topBlock.lot && formState.topBlock.block && formState.topBlock.plan
+      ? `Lot ${formState.topBlock.lot}, Block ${formState.topBlock.block}, Plan ${formState.topBlock.plan}`
+      : null,
+    formState.topBlock.streetAddress
+  ].filter((value): value is string => Boolean(value));
 }
 
 function buildParagraphBlock(paragraph: GeneratedParagraph): ParagraphBlock {
@@ -86,10 +104,7 @@ function buildClientAddressBlock(formState: FormState, topBlock: GeneratedParagr
 
 function buildReBlock(formState: FormState, topBlock: GeneratedParagraph): MetadataBlock {
   const detailLines = [
-    formState.topBlock.includeLegalDescription && formState.topBlock.lot && formState.topBlock.block && formState.topBlock.plan
-      ? `Lot ${formState.topBlock.lot}, Block ${formState.topBlock.block}, Plan ${formState.topBlock.plan}`
-      : null,
-    formState.topBlock.streetAddress,
+    ...buildLegalDescriptionLines(formState),
     formState.topBlock.includeSubdivision && formState.topBlock.subdivision ? formState.topBlock.subdivision : null,
     formState.topBlock.municipality,
     formState.topBlock.includeClientJobNumber && formState.topBlock.clientJobNumber
@@ -123,7 +138,7 @@ function buildFirstPageHeader(): HeaderBlock {
   };
 }
 
-function buildContinuationHeader(formState: FormState): HeaderBlock {
+function buildContinuationHeader(formState: FormState, pageNumber: number, totalPages: number): HeaderBlock {
   const subjectLine = getSubjectLine(formState);
   const fileNumberLine = `File No. ${formState.topBlock.fileNumber}`;
 
@@ -133,7 +148,7 @@ function buildContinuationHeader(formState: FormState): HeaderBlock {
     role: 'continuation_subject',
     alignment: 'left',
     title: 'Continuation header',
-    lines: [`${subjectLine}    ${fileNumberLine}`],
+    lines: [`J.R. Paine & Associates Ltd.\tPage ${pageNumber} of ${totalPages}`, `${subjectLine}\t${fileNumberLine}`],
     subjectLine,
     fileNumberLine
   };
@@ -147,7 +162,7 @@ function buildOfficeContacts() {
   ];
 }
 
-function buildFirstPageFooter(archivePath: string): FooterBlock {
+function buildFirstPageFooter(): FooterBlock {
   const offices = buildOfficeContacts();
 
   return {
@@ -156,15 +171,14 @@ function buildFirstPageFooter(archivePath: string): FooterBlock {
     role: 'office_contacts',
     alignment: 'center',
     title: 'First-page footer',
-    lines: [...offices.flatMap((office) => [office.city, office.phone]), archivePath],
+    lines: offices.flatMap((office) => [office.city, office.phone]),
     offices,
-    archivePathLine: archivePath,
     clauseRefs: toClauseRefs(['FMT_02', 'SIG_04']),
     ruleRefs: toRuleRefs(['DT_115'])
   };
 }
 
-function buildContinuationFooter(archivePath: string): FooterBlock {
+function buildContinuationFooter(): FooterBlock {
   const offices = buildOfficeContacts();
 
   return {
@@ -173,9 +187,8 @@ function buildContinuationFooter(archivePath: string): FooterBlock {
     role: 'continuation_footer',
     alignment: 'center',
     title: 'Continuation footer',
-    lines: [...offices.flatMap((office) => [office.city, office.phone]), archivePath],
+    lines: offices.flatMap((office) => [office.city, office.phone]),
     offices,
-    archivePathLine: archivePath,
     clauseRefs: toClauseRefs(['FMT_03', 'SIG_04']),
     ruleRefs: toRuleRefs(['DT_115'])
   };
@@ -238,7 +251,7 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
   const exportWarnings: string[] = [];
   const firstPageBodyBlocks: LetterDocumentBodyBlock[] = [];
   const continuationBodyBlocks: LetterDocumentBodyBlock[] = [];
-  const firstPageBodySections: SectionId[] = ['P1', 'P2', 'P3', 'P4'];
+  const firstPageBodySections: SectionId[] = ['P1', 'P2', 'P3', 'P3A', 'P4'];
   const topBlock = getParagraphBySection(result, 'TOP_BLOCK');
   const closing = getParagraphBySection(result, 'CLOSING');
   const signoffParagraph = getParagraphBySection(result, 'SIGNOFF');
@@ -281,14 +294,14 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
         kind: 'first_page',
         headerBlock: buildFirstPageHeader(),
         bodyBlocks: firstPageBodyBlocks,
-        footerBlock: buildFirstPageFooter(result.archivePath)
+        footerBlock: buildFirstPageFooter()
       },
       {
         id: 'page-2',
         kind: 'continuation_page',
-        headerBlock: buildContinuationHeader(formState),
+        headerBlock: buildContinuationHeader(formState, 2, 2),
         bodyBlocks: continuationBodyBlocks,
-        footerBlock: buildContinuationFooter(result.archivePath)
+        footerBlock: buildContinuationFooter()
       }
     ],
     filename: result.filename,

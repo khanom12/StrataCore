@@ -334,16 +334,34 @@ textarea {
 
 .signoff-block__label {
   margin-bottom: 2px;
+  font-weight: 600;
 }
 
 .continuation-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
+  display: grid;
+  gap: 4px;
   border-bottom: 1px solid rgba(63, 51, 36, 0.12);
   padding-bottom: 10px;
   margin-bottom: 18px;
+}
+
+.continuation-header__line {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
   font-weight: 600;
+}
+
+.continuation-header__line--meta {
+  font-size: 0.96rem;
+}
+
+.signoff-block__value {
+  margin-left: 8px;
+}
+
+.signoff-block__supporting {
+  margin-top: 6px;
 }
 
 .letter-footer {
@@ -387,7 +405,7 @@ details.preview-card[open] summary {
     grid-template-columns: 1fr;
   }
 
-  .continuation-header {
+  .continuation-header__line {
     flex-direction: column;
     align-items: flex-start;
   }
