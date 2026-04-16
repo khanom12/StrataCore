@@ -1,49 +1,42 @@
 import { describe, expect, it } from 'vitest';
 
-import { defaultFormState } from '@/lib/draft/default-form-state';
 import { generateLetter } from '@/lib/generation/generate-letter';
+import { genericHappyPath } from '@/lib/reference-cases/generic-happy-path';
+import { victoryHomes2026IssuedExample } from '@/lib/reference-cases/victory-homes-2026';
 import type { FormState } from '@/types/domain';
 
-function cloneFormState(): FormState {
-  return JSON.parse(JSON.stringify(defaultFormState)) as FormState;
+function cloneFormState(formState: FormState): FormState {
+  return JSON.parse(JSON.stringify(formState)) as FormState;
 }
 
 describe('generateLetter', () => {
-  it('returns a normalized GenerationResult for the current happy path', () => {
-    const formState = cloneFormState();
-    const result = generateLetter(formState);
+  it('returns the expected normalized GenerationResult for the Victory Homes 2026 reference case', () => {
+    const result = generateLetter(cloneFormState(victoryHomes2026IssuedExample));
     const topBlockText = result.paragraphs.find((paragraph) => paragraph.sectionId === 'TOP_BLOCK')?.text ?? '';
     const p1Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P1')?.text ?? '';
 
-    expect(result.visibleSections).toEqual([
-      'TOP_BLOCK',
-      'P1',
-      'P2',
-      'P3',
-      'P4',
-      'P5',
-      'P7',
-      'CLOSING',
-      'SIGNOFF'
-    ]);
-    expect(result.paragraphs.map((paragraph) => paragraph.order)).toEqual([10, 20, 30, 40, 50, 60, 80, 90, 100]);
-    expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P1')?.text).toContain(
-      'has conducted an inspection of the above noted excavation'
-    );
-    expect(topBlockText).toContain('April 15, 2026');
+    expect(result.visibleSections).toEqual(['TOP_BLOCK', 'P1', 'P2', 'P3', 'P4', 'P7', 'CLOSING', 'SIGNOFF']);
+    expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P5')).toBeUndefined();
+    expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P6')).toBeUndefined();
+    expect(topBlockText).toContain('February 4, 2026');
     expect(p1Text).toContain('January 28, 2026');
+    expect(result.filename).toBe('h38566vic.docx');
+    expect(result.archivePath).toBe('H:\\DATA 2026\\00 Housing 2026\\5478 - 1 VICTORY HOMES LTD.\\h38566vic.docx');
+    expect(result.clauseRefsUsed.some((ref) => ref.id === 'CL_007')).toBe(true);
+    expect(result.ruleRefsUsed.some((ref) => ref.id === 'DT_051')).toBe(true);
+  });
+
+  it('keeps the generic happy path garage paragraph active for smoke-check use', () => {
+    const result = generateLetter(cloneFormState(genericHappyPath));
+
+    expect(result.visibleSections).toContain('P5');
     expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P5')?.text).toContain(
       'standard footing foundation for the attached garage'
     );
-    expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P6')).toBeUndefined();
-    expect(result.filename).toBe('h38566vic.docx');
-    expect(result.archivePath).toBe('H:\\DATA 2026\\00 Housing 2026\\5478 - 1 VICTORY HOMES LTD.\\h38566vic.docx');
-    expect(result.clauseRefsUsed.some((ref) => ref.id === 'CL_000')).toBe(true);
-    expect(result.ruleRefsUsed.some((ref) => ref.id === 'DT_010')).toBe(true);
   });
 
   it('omits the garage paragraph when no garage exists and inserts the sulphate paragraph when requested', () => {
-    const formState = cloneFormState();
+    const formState = cloneFormState(genericHappyPath);
     formState.reportBody.garage.mode = 'none';
     formState.reportBody.sulphate = {
       includeParagraph: true,
@@ -59,7 +52,7 @@ describe('generateLetter', () => {
   });
 
   it('attaches typed review flags to related sections instead of silently resolving ambiguous branches', () => {
-    const formState = cloneFormState();
+    const formState = cloneFormState(genericHappyPath);
     formState.reportBody.soil.primarySoilOrigin = 'engineered_fill_unknown';
     formState.reportBody.recommendation.spreadFootingFamily = 'review_100_kpa';
 
@@ -76,8 +69,7 @@ describe('generateLetter', () => {
   });
 
   it('keeps the hidden H number out of visible letter paragraphs while using it in filename and archive path', () => {
-    const formState = cloneFormState();
-    const result = generateLetter(formState);
+    const result = generateLetter(cloneFormState(victoryHomes2026IssuedExample));
     const visibleBody = result.paragraphs.map((paragraph) => paragraph.text).join('\n');
 
     expect(visibleBody).not.toContain('h38566');
@@ -86,7 +78,7 @@ describe('generateLetter', () => {
   });
 
   it('derives the P2 cut range from the four recorded corner cut values', () => {
-    const formState = cloneFormState();
+    const formState = cloneFormState(genericHappyPath);
     formState.reportBody.excavation.houseFootingCutDepthsM = {
       frontLeftM: 1.2,
       frontRightM: 1.4,
@@ -101,7 +93,7 @@ describe('generateLetter', () => {
   });
 
   it('adds oversized trench remediation to P4 and switches the recommendation to conditional adequacy wording', () => {
-    const formState = cloneFormState();
+    const formState = cloneFormState(genericHappyPath);
     formState.reportBody.excavation.oversizedTrench = true;
     formState.reportBody.excavation.trenchLocation = 'front_left';
 
@@ -114,7 +106,7 @@ describe('generateLetter', () => {
   });
 
   it('adds frost reinforcement wording ahead of the base P4 recommendation', () => {
-    const formState = cloneFormState();
+    const formState = cloneFormState(genericHappyPath);
     formState.reportBody.excavation.frostDepthMm = 200;
 
     const result = generateLetter(formState);
@@ -124,20 +116,21 @@ describe('generateLetter', () => {
     expect(p4Text).toContain('would then be considered adequate');
   });
 
-  it('uses conditional signoff wording instead of always forcing a reviewed-by line', () => {
-    const formState = cloneFormState();
+  it('uses conditional signoff wording and the registry-backed Scott member number', () => {
+    const formState = cloneFormState(genericHappyPath);
     formState.signoff.preparedBy = '';
 
     const result = generateLetter(formState);
     const signoffText = result.paragraphs.find((paragraph) => paragraph.sectionId === 'SIGNOFF')?.text ?? '';
 
+    expect(signoffText).toContain('Yours truly,');
     expect(signoffText).toContain('Signed by: Scott MacFarlane, P.Eng.');
-    expect(signoffText).toContain('Member No.: [registry pending]');
+    expect(signoffText).toContain('Member No.: 89667');
     expect(signoffText).not.toContain('Reviewed by:');
   });
 
-  it('threads secondary moisture, plasticity, and descriptors into P3 output', () => {
-    const formState = cloneFormState();
+  it('threads secondary moisture, plasticity, and descriptors into the single-layer P3 output', () => {
+    const formState = cloneFormState(genericHappyPath);
     formState.reportBody.soil.moisture2 = 'wet';
     formState.reportBody.soil.plasticity2 = 'high';
     formState.reportBody.soil.clayDescriptors = ['silty'];

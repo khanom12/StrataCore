@@ -15,6 +15,7 @@ function buildParagraphBlock(paragraph: GeneratedParagraph): ParagraphBlock {
   return {
     id: `paragraph-${paragraph.id}`,
     kind: 'paragraph_block',
+    alignment: 'left',
     title: paragraph.title,
     text: paragraph.text,
     sectionId: paragraph.sectionId,
@@ -28,6 +29,7 @@ function buildMetadataBlock(paragraph: GeneratedParagraph): MetadataBlock {
   return {
     id: 'metadata-top-block',
     kind: 'metadata_block',
+    alignment: 'left',
     title: paragraph.title,
     lines: splitLines(paragraph.text),
     sectionId: paragraph.sectionId,
@@ -36,19 +38,17 @@ function buildMetadataBlock(paragraph: GeneratedParagraph): MetadataBlock {
   };
 }
 
-function buildOfficeAddressBlock(): { block: MetadataBlock; warnings: string[] } {
+function buildOfficeAddressBlock(): MetadataBlock {
   const definition = getReportSectionDefinition('META_01');
 
   return {
-    block: {
-      id: 'metadata-office-address',
-      kind: 'metadata_block',
-      title: definition?.name ?? 'Office Address Block',
-      lines: ['J.R. Paine & Associates Ltd.', 'Edmonton office block placeholder', 'Exact office address lines to be confirmed.'],
-      clauseRefs: toClauseRefs(['META_01']),
-      ruleRefs: toRuleRefs(['DT_001'])
-    },
-    warnings: ['The fixed Edmonton office address block is still using a text placeholder until the exact office lines/assets are confirmed.']
+    id: 'metadata-office-address',
+    kind: 'metadata_block',
+    alignment: 'right',
+    title: definition?.name ?? 'Office Address Block',
+    lines: ['2304 - 119 Avenue NE', 'Edmonton, Alberta', 'T6S 1B3'],
+    clauseRefs: toClauseRefs(['META_01']),
+    ruleRefs: toRuleRefs(['DT_001'])
   };
 }
 
@@ -56,17 +56,23 @@ function buildFirstPageHeader(): HeaderBlock {
   return {
     id: 'header-first-page',
     kind: 'header_block',
+    alignment: 'center',
     title: 'First-page header',
-    lines: ['J.R. Paine & Associates Ltd.', 'Foundation Soil Inspection Letter', 'First-page header placeholder']
+    lines: ['J.R. Paine & Associates Ltd.', 'CONSULTING AND TESTING ENGINEERS', 'EDMONTON - GRANDE PRAIRIE - PEACE RIVER']
   };
 }
 
-function buildContinuationHeader(): HeaderBlock {
+function buildContinuationHeader(formState: FormState): HeaderBlock {
   return {
     id: 'header-continuation-page',
     kind: 'header_block',
+    alignment: 'left',
     title: 'Continuation header',
-    lines: ['J.R. Paine & Associates Ltd.', 'Foundation Soil Inspection Letter (continued)']
+    lines: [
+      'J.R. Paine & Associates Ltd.',
+      'FOUNDATION SOIL INSPECTION LETTER - CONTINUED',
+      `File No.: ${formState.topBlock.fileNumber}`
+    ]
   };
 }
 
@@ -74,19 +80,21 @@ function buildFirstPageFooter(archivePath: string): FooterBlock {
   return {
     id: 'footer-first-page',
     kind: 'footer_block',
+    alignment: 'center',
     title: 'First-page footer',
-    lines: ['First-page office footer placeholder', archivePath],
+    lines: ['EDMONTON    GRANDE PRAIRIE    PEACE RIVER', '780-489-0700    780-532-1515    780-624-4966', archivePath],
     clauseRefs: toClauseRefs(['FMT_02', 'SIG_04']),
     ruleRefs: toRuleRefs(['DT_115'])
   };
 }
 
-function buildContinuationFooter(filename: string, archivePath: string): FooterBlock {
+function buildContinuationFooter(formState: FormState, filename: string, archivePath: string): FooterBlock {
   return {
     id: 'footer-continuation-page',
     kind: 'footer_block',
+    alignment: 'left',
     title: 'Continuation footer',
-    lines: [`Export filename: ${filename}`, archivePath],
+    lines: [`${formState.topBlock.clientName} | ${formState.topBlock.streetAddress}`, `Export filename: ${filename}`, archivePath],
     clauseRefs: toClauseRefs(['FMT_03', 'SIG_04']),
     ruleRefs: toRuleRefs(['DT_115'])
   };
@@ -100,7 +108,9 @@ function buildSignoffBlock(formState: FormState, paragraph: GeneratedParagraph):
     block: {
       id: 'signoff-block',
       kind: 'signoff_block',
+      alignment: 'left',
       title: paragraph.title,
+      salutationLine: signoff.salutation,
       organization: signoff.organization,
       lines: signoff.lines,
       engineerMemberNumberLine: signoff.signingEngineer.profile.memberNumber
@@ -153,10 +163,8 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
   const signoffParagraph = getParagraphBySection(result, 'SIGNOFF');
   const officeAddress = buildOfficeAddressBlock();
 
-  exportWarnings.push(...officeAddress.warnings);
-
   if (topBlock) {
-    firstPageBodyBlocks.push(officeAddress.block);
+    firstPageBodyBlocks.push(officeAddress);
     firstPageBodyBlocks.push(buildMetadataBlock(topBlock));
   }
 
@@ -182,8 +190,6 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
     exportWarnings.push(...signoffBlock.warnings);
   }
 
-  exportWarnings.push('First-page and continuation footer branding remain text-only placeholders until office assets are added.');
-
   return {
     pages: [
       {
@@ -196,9 +202,9 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
       {
         id: 'page-2',
         kind: 'continuation_page',
-        headerBlock: buildContinuationHeader(),
+        headerBlock: buildContinuationHeader(formState),
         bodyBlocks: continuationBodyBlocks,
-        footerBlock: buildContinuationFooter(result.filename, result.archivePath)
+        footerBlock: buildContinuationFooter(formState, result.filename, result.archivePath)
       }
     ],
     filename: result.filename,

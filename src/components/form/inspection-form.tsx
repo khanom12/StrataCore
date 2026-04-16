@@ -2,12 +2,15 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react';
 
 import { deriveHouseCutRange } from '@/lib/domain/report-helpers';
+import { buildFallbackSoilLayer, getPrimarySoilFieldsFromLayer } from '@/lib/domain/soil-layers';
 import { defaultFormState } from '@/lib/draft/default-form-state';
 import { loadDraftState, saveDraftState } from '@/lib/draft/storage';
-import type { FormState, SoilInputs } from '@/types/domain';
+import { getEngineerRegistry, formatSignoffName, resolveSignoffProfile } from '@/lib/signoff/engineer-registry';
+import { cloneFormState, getReferenceCasePreset, identifyReferenceCasePreset } from '@/lib/reference-cases';
+import type { FormState, SoilInputs, SoilLayerDescriptor } from '@/types/domain';
 
 function selectedValues(event: ChangeEvent<HTMLSelectElement>) {
   return Array.from(event.target.selectedOptions).map((option) => option.value);
@@ -17,12 +20,37 @@ function formatDerivedNumber(value?: number) {
   return value === undefined ? 'n/a' : `${value.toFixed(1)} m`;
 }
 
+const SIGNOFF_CUSTOM_OPTION = '__custom__';
+
+function getRegistrySelectValue(value: string | undefined, allowBlank: boolean) {
+  const trimmed = value?.trim() ?? '';
+
+  if (!trimmed) {
+    return allowBlank ? '' : SIGNOFF_CUSTOM_OPTION;
+  }
+
+  const resolved = resolveSignoffProfile(trimmed);
+  return resolved.matched ? formatSignoffName(resolved.profile) : SIGNOFF_CUSTOM_OPTION;
+}
+
 export function InspectionForm() {
   const router = useRouter();
   const [formState, setFormState] = useState<FormState>(defaultFormState);
   const cutRange = deriveHouseCutRange(formState.reportBody.excavation.houseFootingCutDepthsM);
-  const isClayFamily = formState.reportBody.soil.primaryMaterialFamily !== 'sand' && formState.reportBody.soil.primaryMaterialFamily !== 'silt';
-  const isSandSiltFamily = formState.reportBody.soil.primaryMaterialFamily === 'sand' || formState.reportBody.soil.primaryMaterialFamily === 'silt';
+  const matchedPreset = useMemo(() => identifyReferenceCasePreset(formState), [formState]);
+  const signoffProfiles = useMemo(() => getEngineerRegistry(), []);
+  const signoffOptions = useMemo(
+    () => signoffProfiles.map((profile) => [formatSignoffName(profile), formatSignoffName(profile)] as [string, string]),
+    [signoffProfiles]
+  );
+  const preparedBySelectValue = getRegistrySelectValue(formState.signoff.preparedBy, true);
+  const signingEngineerSelectValue = getRegistrySelectValue(formState.signoff.signingEngineer, false);
+  const primarySoilFamily = formState.reportBody.soil.primaryMaterialFamily;
+  const isClayFamily = primarySoilFamily !== 'sand' && primarySoilFamily !== 'silt';
+  const isSandSiltFamily = primarySoilFamily === 'sand' || primarySoilFamily === 'silt';
+  const isLayeredSoil = formState.reportBody.soil.soilLayeringMode === 'engineered_fill_over_native';
+  const engineeredFillLayer = formState.reportBody.soil.engineeredFillLayer ?? buildFallbackSoilLayer(formState.reportBody.soil);
+  const underlyingNativeLayer = formState.reportBody.soil.underlyingNativeLayer ?? buildFallbackSoilLayer(formState.reportBody.soil);
 
   useEffect(() => {
     setFormState(loadDraftState());
@@ -65,6 +93,33 @@ export function InspectionForm() {
         soil: { ...current.reportBody.soil, [key]: value }
       }
     }));
+  }
+
+  function updateSoilLayer<K extends keyof SoilLayerDescriptor>(
+    layerKey: 'engineeredFillLayer' | 'underlyingNativeLayer',
+    key: K,
+    value: SoilLayerDescriptor[K]
+  ) {
+    updateState((current) => {
+      const currentLayer = current.reportBody.soil[layerKey] ?? buildFallbackSoilLayer(current.reportBody.soil);
+      const nextLayer = { ...currentLayer, [key]: value } as SoilLayerDescriptor;
+      const nextSoil = {
+        ...current.reportBody.soil,
+        [layerKey]: nextLayer
+      };
+
+      if (layerKey === 'engineeredFillLayer') {
+        Object.assign(nextSoil, getPrimarySoilFieldsFromLayer(nextLayer));
+      }
+
+      return {
+        ...current,
+        reportBody: {
+          ...current.reportBody,
+          soil: nextSoil
+        }
+      };
+    });
   }
 
   function updateRecommendation<K extends keyof FormState['reportBody']['recommendation']>(
@@ -138,25 +193,68 @@ export function InspectionForm() {
     router.push('/preview');
   }
 
-  function resetDraft() {
-    setFormState(defaultFormState);
-    saveDraftState(defaultFormState);
+  function loadPreset(presetId: string) {
+    const preset = getReferenceCasePreset(presetId);
+
+    if (!preset) {
+      return;
+    }
+
+    const nextState = cloneFormState(preset.formState);
+    setFormState(nextState);
+    saveDraftState(nextState);
+  }
+
+  function handlePreparedBySelect(value: string) {
+    if (!value) {
+      updateSignoff('preparedBy', '');
+      return;
+    }
+
+    if (value === SIGNOFF_CUSTOM_OPTION) {
+      if (preparedBySelectValue !== SIGNOFF_CUSTOM_OPTION) {
+        updateSignoff('preparedBy', '');
+      }
+
+      return;
+    }
+
+    updateSignoff('preparedBy', value);
+  }
+
+  function handleSigningEngineerSelect(value: string) {
+    if (value === SIGNOFF_CUSTOM_OPTION) {
+      if (signingEngineerSelectValue !== SIGNOFF_CUSTOM_OPTION) {
+        updateSignoff('signingEngineer', '');
+      }
+
+      return;
+    }
+
+    updateSignoff('signingEngineer', value);
   }
 
   return (
     <>
       <section className="panel">
         <p className="note">
-          The form stays intentionally plain, but it now captures the next V1 excavation and soil inputs that
-          actually flow into deterministic generation or visible review flags. The preview still owns all
-          letter assembly, while the form only edits the canonical grouped draft state.
+          The form stays intentionally plain, but it now supports explicit presets instead of treating the
+          default draft as a fuzzy seed example. The preview still owns all letter assembly, while the form
+          only edits the canonical grouped draft state.
         </p>
+        <p>
+          <strong>Current draft</strong>
+        </p>
+        <p>{matchedPreset ? `${matchedPreset.label} (${matchedPreset.presetKind === 'reference' ? 'reference preset' : 'smoke preset'})` : 'Live edited draft'}</p>
         <div className="button-row">
           <button type="button" onClick={submitDraft}>
             Save and open preview
           </button>
-          <button className="secondary" type="button" onClick={resetDraft}>
-            Reset to seed example
+          <button className="secondary" type="button" onClick={() => loadPreset('victory-homes-2026')}>
+            Load Victory Homes 2026
+          </button>
+          <button className="secondary" type="button" onClick={() => loadPreset('generic-happy-path')}>
+            Load generic happy path
           </button>
           <Link className="button secondary" href="/preview">
             Preview current draft
@@ -356,7 +454,28 @@ export function InspectionForm() {
           <SelectField
             label="Layering mode"
             value={formState.reportBody.soil.soilLayeringMode}
-            onChange={(value) => updateSoil('soilLayeringMode', value as SoilInputs['soilLayeringMode'])}
+            onChange={(value) =>
+              updateState((current) => {
+                const nextMode = value as SoilInputs['soilLayeringMode'];
+                const nextSoil = {
+                  ...current.reportBody.soil,
+                  soilLayeringMode: nextMode
+                };
+
+                if (nextMode === 'engineered_fill_over_native') {
+                  nextSoil.engineeredFillLayer = current.reportBody.soil.engineeredFillLayer ?? buildFallbackSoilLayer(current.reportBody.soil);
+                  nextSoil.underlyingNativeLayer = current.reportBody.soil.underlyingNativeLayer ?? buildFallbackSoilLayer(current.reportBody.soil);
+                }
+
+                return {
+                  ...current,
+                  reportBody: {
+                    ...current.reportBody,
+                    soil: nextSoil
+                  }
+                };
+              })
+            }
             options={[
               ['single_layer', 'Single layer'],
               ['engineered_fill_over_native', 'Engineered fill over native']
@@ -374,130 +493,156 @@ export function InspectionForm() {
               ['engineered_fill_unknown', 'Engineered fill unknown']
             ]}
           />
-          <SelectField
-            label="Material family"
-            value={formState.reportBody.soil.primaryMaterialFamily}
-            onChange={(value) => updateSoil('primaryMaterialFamily', value as SoilInputs['primaryMaterialFamily'])}
-            options={[
-              ['clay', 'Clay'],
-              ['clay_till', 'Clay till'],
-              ['sand', 'Sand'],
-              ['silt', 'Silt'],
-              ['clayey_sand', 'Clayey sand'],
-              ['clayey_silt', 'Clayey silt']
-            ]}
-          />
-          <SelectField
-            label="Primary moisture"
-            value={formState.reportBody.soil.moisture1}
-            onChange={(value) => updateSoil('moisture1', value as SoilInputs['moisture1'])}
-            options={[
-              ['damp', 'Damp'],
-              ['moist', 'Moist'],
-              ['very_moist', 'Very moist'],
-              ['wet', 'Wet']
-            ]}
-          />
-          <OptionalSelectField
-            label="Secondary moisture"
-            value={formState.reportBody.soil.moisture2 ?? ''}
-            onChange={(value) => updateSoil('moisture2', value ? (value as SoilInputs['moisture2']) : undefined)}
-            options={[
-              ['moist', 'Moist'],
-              ['very_moist', 'Very moist'],
-              ['wet', 'Wet']
-            ]}
-          />
-          <SelectField
-            label="Colour"
-            value={formState.reportBody.soil.colour}
-            onChange={(value) => updateSoil('colour', value as SoilInputs['colour'])}
-            options={[
-              ['brown', 'Brown'],
-              ['grey', 'Grey'],
-              ['brown_and_grey', 'Brown and grey'],
-              ['brown_and_dark_grey', 'Brown and dark grey'],
-              ['dark_grey', 'Dark grey'],
-              ['black', 'Black'],
-              ['reddish_brown', 'Reddish brown']
-            ]}
-          />
-          <SelectField
-            label="Primary plasticity"
-            value={formState.reportBody.soil.plasticity1}
-            onChange={(value) => updateSoil('plasticity1', value as SoilInputs['plasticity1'])}
-            options={[
-              ['low', 'Low'],
-              ['medium', 'Medium'],
-              ['high', 'High']
-            ]}
-          />
-          <OptionalSelectField
-            label="Secondary plasticity"
-            value={formState.reportBody.soil.plasticity2 ?? ''}
-            onChange={(value) => updateSoil('plasticity2', value ? (value as SoilInputs['plasticity2']) : undefined)}
-            options={[
-              ['medium', 'Medium'],
-              ['high', 'High']
-            ]}
-          />
-          <SelectField
-            label="Consistency / density"
-            value={formState.reportBody.soil.consistencyOrDensity}
-            onChange={(value) => updateSoil('consistencyOrDensity', value as SoilInputs['consistencyOrDensity'])}
-            options={[
-              ['soft', 'Soft'],
-              ['firm', 'Firm'],
-              ['stiff', 'Stiff'],
-              ['very_stiff', 'Very stiff'],
-              ['hard', 'Hard'],
-              ['very_loose', 'Very loose'],
-              ['loose', 'Loose'],
-              ['compact', 'Compact'],
-              ['dense', 'Dense'],
-              ['very_dense', 'Very dense']
-            ]}
-          />
-          {isClayFamily ? (
-            <MultiSelectField
-              label="Clay descriptors"
-              value={formState.reportBody.soil.clayDescriptors ?? []}
-              onChange={(values) => updateSoil('clayDescriptors', values as SoilInputs['clayDescriptors'])}
-              options={[
-                ['silty', 'Silty'],
-                ['very_silty', 'Very silty'],
-                ['sandy', 'Sandy'],
-                ['very_sandy', 'Very sandy']
-              ]}
-            />
-          ) : null}
-          {isSandSiltFamily ? (
-            <MultiSelectField
-              label="Sand / silt descriptors"
-              value={formState.reportBody.soil.sandSiltDescriptors ?? []}
-              onChange={(values) => updateSoil('sandSiltDescriptors', values as SoilInputs['sandSiltDescriptors'])}
-              options={[
-                ['coarse', 'Coarse'],
-                ['medium', 'Medium'],
-                ['fine', 'Fine'],
-                ['well_graded', 'Well graded'],
-                ['poorly_graded', 'Poorly graded']
-              ]}
-            />
-          ) : null}
-          <MultiSelectField
-            label="Trace features"
-            value={formState.reportBody.soil.traceFeatures ?? []}
-            onChange={(values) => updateSoil('traceFeatures', values as SoilInputs['traceFeatures'])}
-            options={[
-              ['oxides', 'Oxides'],
-              ['white_precipitates', 'White precipitates'],
-              ['coal', 'Coal'],
-              ['gravel', 'Gravel'],
-              ['organics', 'Organics'],
-              ['rootlets', 'Rootlets']
-            ]}
-          />
+          {isLayeredSoil ? (
+            <>
+              <Field
+                label="Fill depth below footing (mm)"
+                type="number"
+                value={formState.reportBody.soil.fillDepthBelowFootingMm?.toString() ?? ''}
+                onChange={(value) => updateSoil('fillDepthBelowFootingMm', value ? Number(value) : undefined)}
+              />
+              <div className="field full">
+                <p className="note">Layered engineered-fill mode is active. The engineered fill layer drives the primary top-level soil descriptors used for fallback and traceability.</p>
+              </div>
+              <SoilLayerFieldSet
+                title="Engineered fill layer"
+                layer={engineeredFillLayer}
+                onChange={(key, value) => updateSoilLayer('engineeredFillLayer', key, value)}
+              />
+              <SoilLayerFieldSet
+                title="Underlying native layer"
+                layer={underlyingNativeLayer}
+                onChange={(key, value) => updateSoilLayer('underlyingNativeLayer', key, value)}
+              />
+            </>
+          ) : (
+            <>
+              <SelectField
+                label="Material family"
+                value={formState.reportBody.soil.primaryMaterialFamily}
+                onChange={(value) => updateSoil('primaryMaterialFamily', value as SoilInputs['primaryMaterialFamily'])}
+                options={[
+                  ['clay', 'Clay'],
+                  ['clay_till', 'Clay till'],
+                  ['sand', 'Sand'],
+                  ['silt', 'Silt'],
+                  ['clayey_sand', 'Clayey sand'],
+                  ['clayey_silt', 'Clayey silt']
+                ]}
+              />
+              <SelectField
+                label="Primary moisture"
+                value={formState.reportBody.soil.moisture1}
+                onChange={(value) => updateSoil('moisture1', value as SoilInputs['moisture1'])}
+                options={[
+                  ['damp', 'Damp'],
+                  ['moist', 'Moist'],
+                  ['very_moist', 'Very moist'],
+                  ['wet', 'Wet']
+                ]}
+              />
+              <OptionalSelectField
+                label="Secondary moisture"
+                value={formState.reportBody.soil.moisture2 ?? ''}
+                onChange={(value) => updateSoil('moisture2', value ? (value as SoilInputs['moisture2']) : undefined)}
+                options={[
+                  ['moist', 'Moist'],
+                  ['very_moist', 'Very moist'],
+                  ['wet', 'Wet']
+                ]}
+              />
+              <SelectField
+                label="Colour"
+                value={formState.reportBody.soil.colour}
+                onChange={(value) => updateSoil('colour', value as SoilInputs['colour'])}
+                options={[
+                  ['brown', 'Brown'],
+                  ['grey', 'Grey'],
+                  ['brown_and_grey', 'Brown and grey'],
+                  ['brown_and_dark_grey', 'Brown and dark grey'],
+                  ['dark_grey', 'Dark grey'],
+                  ['black', 'Black'],
+                  ['reddish_brown', 'Reddish brown']
+                ]}
+              />
+              <SelectField
+                label="Primary plasticity"
+                value={formState.reportBody.soil.plasticity1}
+                onChange={(value) => updateSoil('plasticity1', value as SoilInputs['plasticity1'])}
+                options={[
+                  ['low', 'Low'],
+                  ['medium', 'Medium'],
+                  ['high', 'High']
+                ]}
+              />
+              <OptionalSelectField
+                label="Secondary plasticity"
+                value={formState.reportBody.soil.plasticity2 ?? ''}
+                onChange={(value) => updateSoil('plasticity2', value ? (value as SoilInputs['plasticity2']) : undefined)}
+                options={[
+                  ['medium', 'Medium'],
+                  ['high', 'High']
+                ]}
+              />
+              <SelectField
+                label="Consistency / density"
+                value={formState.reportBody.soil.consistencyOrDensity}
+                onChange={(value) => updateSoil('consistencyOrDensity', value as SoilInputs['consistencyOrDensity'])}
+                options={[
+                  ['soft', 'Soft'],
+                  ['firm', 'Firm'],
+                  ['stiff', 'Stiff'],
+                  ['very_stiff', 'Very stiff'],
+                  ['hard', 'Hard'],
+                  ['very_loose', 'Very loose'],
+                  ['loose', 'Loose'],
+                  ['compact', 'Compact'],
+                  ['dense', 'Dense'],
+                  ['very_dense', 'Very dense']
+                ]}
+              />
+              {isClayFamily ? (
+                <MultiSelectField
+                  label="Clay descriptors"
+                  value={formState.reportBody.soil.clayDescriptors ?? []}
+                  onChange={(values) => updateSoil('clayDescriptors', values as SoilInputs['clayDescriptors'])}
+                  options={[
+                    ['silty', 'Silty'],
+                    ['very_silty', 'Very silty'],
+                    ['sandy', 'Sandy'],
+                    ['very_sandy', 'Very sandy']
+                  ]}
+                />
+              ) : null}
+              {isSandSiltFamily ? (
+                <MultiSelectField
+                  label="Sand / silt descriptors"
+                  value={formState.reportBody.soil.sandSiltDescriptors ?? []}
+                  onChange={(values) => updateSoil('sandSiltDescriptors', values as SoilInputs['sandSiltDescriptors'])}
+                  options={[
+                    ['coarse', 'Coarse'],
+                    ['medium', 'Medium'],
+                    ['fine', 'Fine'],
+                    ['well_graded', 'Well graded'],
+                    ['poorly_graded', 'Poorly graded']
+                  ]}
+                />
+              ) : null}
+              <MultiSelectField
+                label="Trace features"
+                value={formState.reportBody.soil.traceFeatures ?? []}
+                onChange={(values) => updateSoil('traceFeatures', values as SoilInputs['traceFeatures'])}
+                options={[
+                  ['oxides', 'Oxides'],
+                  ['white_precipitates', 'White precipitates'],
+                  ['coal', 'Coal'],
+                  ['gravel', 'Gravel'],
+                  ['organics', 'Organics'],
+                  ['rootlets', 'Rootlets']
+                ]}
+              />
+            </>
+          )}
           <CheckboxField
             label="High plastic warning"
             checked={Boolean(formState.reportBody.soil.highPlasticWarning)}
@@ -582,10 +727,187 @@ export function InspectionForm() {
       <section className="section-card">
         <h2>Signoff Inputs</h2>
         <div className="field-grid">
-          <Field label="Prepared by" value={formState.signoff.preparedBy ?? ''} onChange={(value) => updateSignoff('preparedBy', value)} />
-          <Field label="Signing engineer" value={formState.signoff.signingEngineer} onChange={(value) => updateSignoff('signingEngineer', value)} />
+          <SelectField
+            label="Prepared by"
+            value={preparedBySelectValue}
+            onChange={handlePreparedBySelect}
+            options={[
+              ...signoffOptions,
+              [SIGNOFF_CUSTOM_OPTION, 'Custom manual entry']
+            ]}
+            includeBlankOption
+            blankOptionLabel="Not shown"
+          />
+          {preparedBySelectValue === SIGNOFF_CUSTOM_OPTION ? (
+            <Field
+              label="Prepared by (custom)"
+              value={formState.signoff.preparedBy ?? ''}
+              onChange={(value) => updateSignoff('preparedBy', value)}
+            />
+          ) : null}
+          <SelectField
+            label="Signing engineer"
+            value={signingEngineerSelectValue}
+            onChange={handleSigningEngineerSelect}
+            options={[
+              ...signoffOptions,
+              [SIGNOFF_CUSTOM_OPTION, 'Custom manual entry']
+            ]}
+          />
+          {signingEngineerSelectValue === SIGNOFF_CUSTOM_OPTION ? (
+            <Field
+              label="Signing engineer (custom)"
+              value={formState.signoff.signingEngineer}
+              onChange={(value) => updateSignoff('signingEngineer', value)}
+            />
+          ) : null}
         </div>
       </section>
+    </>
+  );
+}
+
+function SoilLayerFieldSet({
+  title,
+  layer,
+  onChange
+}: {
+  title: string;
+  layer: SoilLayerDescriptor;
+  onChange: <K extends keyof SoilLayerDescriptor>(key: K, value: SoilLayerDescriptor[K]) => void;
+}) {
+  const isClayLayer = layer.materialFamily !== 'sand' && layer.materialFamily !== 'silt';
+  const isSandSiltLayer = layer.materialFamily === 'sand' || layer.materialFamily === 'silt';
+
+  return (
+    <>
+      <div className="field full">
+        <h3>{title}</h3>
+      </div>
+      <SelectField
+        label={`${title} material family`}
+        value={layer.materialFamily}
+        onChange={(value) => onChange('materialFamily', value as SoilLayerDescriptor['materialFamily'])}
+        options={[
+          ['clay', 'Clay'],
+          ['clay_till', 'Clay till'],
+          ['sand', 'Sand'],
+          ['silt', 'Silt'],
+          ['clayey_sand', 'Clayey sand'],
+          ['clayey_silt', 'Clayey silt']
+        ]}
+      />
+      <SelectField
+        label={`${title} primary moisture`}
+        value={layer.moisture1}
+        onChange={(value) => onChange('moisture1', value as SoilLayerDescriptor['moisture1'])}
+        options={[
+          ['damp', 'Damp'],
+          ['moist', 'Moist'],
+          ['very_moist', 'Very moist'],
+          ['wet', 'Wet']
+        ]}
+      />
+      <OptionalSelectField
+        label={`${title} secondary moisture`}
+        value={layer.moisture2 ?? ''}
+        onChange={(value) => onChange('moisture2', value ? (value as SoilLayerDescriptor['moisture2']) : undefined)}
+        options={[
+          ['moist', 'Moist'],
+          ['very_moist', 'Very moist'],
+          ['wet', 'Wet']
+        ]}
+      />
+      <SelectField
+        label={`${title} colour`}
+        value={layer.colour}
+        onChange={(value) => onChange('colour', value as SoilLayerDescriptor['colour'])}
+        options={[
+          ['brown', 'Brown'],
+          ['grey', 'Grey'],
+          ['brown_and_grey', 'Brown and grey'],
+          ['brown_and_dark_grey', 'Brown and dark grey'],
+          ['dark_grey', 'Dark grey'],
+          ['black', 'Black'],
+          ['reddish_brown', 'Reddish brown']
+        ]}
+      />
+      <OptionalSelectField
+        label={`${title} primary plasticity`}
+        value={layer.plasticity1 ?? ''}
+        onChange={(value) => onChange('plasticity1', value ? (value as SoilLayerDescriptor['plasticity1']) : undefined)}
+        options={[
+          ['low', 'Low'],
+          ['medium', 'Medium'],
+          ['high', 'High']
+        ]}
+      />
+      <OptionalSelectField
+        label={`${title} secondary plasticity`}
+        value={layer.plasticity2 ?? ''}
+        onChange={(value) => onChange('plasticity2', value ? (value as SoilLayerDescriptor['plasticity2']) : undefined)}
+        options={[
+          ['medium', 'Medium'],
+          ['high', 'High']
+        ]}
+      />
+      <SelectField
+        label={`${title} consistency / density`}
+        value={layer.consistencyOrDensity}
+        onChange={(value) => onChange('consistencyOrDensity', value as SoilLayerDescriptor['consistencyOrDensity'])}
+        options={[
+          ['soft', 'Soft'],
+          ['firm', 'Firm'],
+          ['stiff', 'Stiff'],
+          ['very_stiff', 'Very stiff'],
+          ['hard', 'Hard'],
+          ['very_loose', 'Very loose'],
+          ['loose', 'Loose'],
+          ['compact', 'Compact'],
+          ['dense', 'Dense'],
+          ['very_dense', 'Very dense']
+        ]}
+      />
+      {isClayLayer ? (
+        <MultiSelectField
+          label={`${title} clay descriptors`}
+          value={layer.clayDescriptors ?? []}
+          onChange={(values) => onChange('clayDescriptors', values as SoilLayerDescriptor['clayDescriptors'])}
+          options={[
+            ['silty', 'Silty'],
+            ['very_silty', 'Very silty'],
+            ['sandy', 'Sandy'],
+            ['very_sandy', 'Very sandy']
+          ]}
+        />
+      ) : null}
+      {isSandSiltLayer ? (
+        <MultiSelectField
+          label={`${title} sand / silt descriptors`}
+          value={layer.sandSiltDescriptors ?? []}
+          onChange={(values) => onChange('sandSiltDescriptors', values as SoilLayerDescriptor['sandSiltDescriptors'])}
+          options={[
+            ['coarse', 'Coarse'],
+            ['medium', 'Medium'],
+            ['fine', 'Fine'],
+            ['well_graded', 'Well graded'],
+            ['poorly_graded', 'Poorly graded']
+          ]}
+        />
+      ) : null}
+      <MultiSelectField
+        label={`${title} trace features`}
+        value={layer.traceFeatures ?? []}
+        onChange={(values) => onChange('traceFeatures', values as SoilLayerDescriptor['traceFeatures'])}
+        options={[
+          ['oxides', 'Oxides'],
+          ['white_precipitates', 'White precipitates'],
+          ['coal', 'Coal'],
+          ['gravel', 'Gravel'],
+          ['organics', 'Organics'],
+          ['rootlets', 'Rootlets']
+        ]}
+      />
     </>
   );
 }
@@ -635,11 +957,15 @@ function TextAreaField({
 }
 
 function SelectField({
+  blankOptionLabel,
+  includeBlankOption,
   label,
   onChange,
   options,
   value
 }: {
+  blankOptionLabel?: string;
+  includeBlankOption?: boolean;
   label: string;
   onChange: (value: string) => void;
   options: Array<[string, string]>;
@@ -651,6 +977,7 @@ function SelectField({
     <div className="field">
       <label htmlFor={id}>{label}</label>
       <select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+        {includeBlankOption ? <option value="">{blankOptionLabel ?? 'None'}</option> : null}
         {options.map(([optionValue, labelText]) => (
           <option key={optionValue} value={optionValue}>
             {labelText}

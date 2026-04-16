@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { composeLetterDocument } from '@/lib/document/compose-letter-document';
-import { defaultFormState } from '@/lib/draft/default-form-state';
 import { generateLetter } from '@/lib/generation/generate-letter';
+import { genericHappyPath } from '@/lib/reference-cases/generic-happy-path';
+import { victoryHomes2026IssuedExample } from '@/lib/reference-cases/victory-homes-2026';
 import type { FormState } from '@/types/domain';
 import type { LetterDocumentBodyBlock } from '@/types/document';
 
-function cloneFormState(): FormState {
-  return JSON.parse(JSON.stringify(defaultFormState)) as FormState;
+function cloneFormState(formState: FormState): FormState {
+  return JSON.parse(JSON.stringify(formState)) as FormState;
 }
 
 function flattenBodyText(blocks: LetterDocumentBodyBlock[]): string {
@@ -19,7 +20,14 @@ function flattenBodyText(blocks: LetterDocumentBodyBlock[]): string {
         case 'paragraph_block':
           return block.text;
         case 'signoff_block':
-          return [block.organization, ...block.lines.map((line) => `${line.label}: ${line.value}`), block.engineerMemberNumberLine, block.stampPlaceholderLine, block.permitToPracticeLine].join('\n');
+          return [
+            block.salutationLine,
+            block.organization,
+            ...block.lines.map((line) => `${line.label}: ${line.value}`),
+            block.engineerMemberNumberLine,
+            block.stampPlaceholderLine,
+            block.permitToPracticeLine
+          ].join('\n');
         case 'spacer_block':
         case 'trace_block':
           return '';
@@ -30,7 +38,7 @@ function flattenBodyText(blocks: LetterDocumentBodyBlock[]): string {
 
 describe('composeLetterDocument', () => {
   it('preserves paragraph ordering across the first-page and continuation-page shells', () => {
-    const formState = cloneFormState();
+    const formState = cloneFormState(genericHappyPath);
     const result = generateLetter(formState);
     const document = composeLetterDocument(formState, result);
     const orderedSections = document.pages.flatMap((page) =>
@@ -42,7 +50,7 @@ describe('composeLetterDocument', () => {
   });
 
   it('keeps the hidden H number out of visible body blocks while preserving it in the footer archive text', () => {
-    const formState = cloneFormState();
+    const formState = cloneFormState(victoryHomes2026IssuedExample);
     const result = generateLetter(formState);
     const document = composeLetterDocument(formState, result);
     const bodyText = document.pages.map((page) => flattenBodyText(page.bodyBlocks)).join('\n');
@@ -53,7 +61,7 @@ describe('composeLetterDocument', () => {
   });
 
   it('keeps internal clause and rule ids out of the client-facing composed document text', () => {
-    const formState = cloneFormState();
+    const formState = cloneFormState(victoryHomes2026IssuedExample);
     const result = generateLetter(formState);
     const document = composeLetterDocument(formState, result);
     const visibleText = [

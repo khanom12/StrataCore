@@ -7,6 +7,7 @@ import {
   deriveHouseCutRange,
   formatDisplayDate
 } from '@/lib/domain/report-helpers';
+import { getEngineeredFillLayer, getUnderlyingNativeLayer } from '@/lib/domain/soil-layers';
 import {
   getClauseText,
   getReviewDecision,
@@ -22,7 +23,8 @@ import type {
   GenerationResult,
   ReviewFlag,
   RuleRef,
-  SectionId
+  SectionId,
+  SoilLayerDescriptor
 } from '@/types/domain';
 
 interface RecommendationAdvisoryContext {
@@ -48,7 +50,7 @@ function formatMillimetres(value?: number): string {
   return `${Math.round(value)}`;
 }
 
-function materialLabel(material: FormState['reportBody']['soil']['primaryMaterialFamily']): string {
+function materialLabel(material: SoilLayerDescriptor['materialFamily']): string {
   switch (material) {
     case 'clay':
       return 'clay';
@@ -74,13 +76,17 @@ function colourLabel(colour: FormState['reportBody']['soil']['colour']): string 
 }
 
 function plasticityLabel(
-  plasticity1: FormState['reportBody']['soil']['plasticity1'],
-  plasticity2?: FormState['reportBody']['soil']['plasticity2']
+  plasticity1?: SoilLayerDescriptor['plasticity1'],
+  plasticity2?: SoilLayerDescriptor['plasticity2']
 ): string {
+  if (!plasticity1) {
+    return '';
+  }
+
   return plasticity2 ? `${plasticity1} to ${plasticity2} plasticity` : `${plasticity1} plasticity`;
 }
 
-function traceFeatureLabel(traceFeatures: NonNullable<FormState['reportBody']['soil']['traceFeatures']>): string {
+function traceFeatureLabel(traceFeatures: NonNullable<SoilLayerDescriptor['traceFeatures']>): string {
   if (traceFeatures.length === 1) {
     return `featured traces of ${descriptorLabel(traceFeatures[0])}`;
   }
@@ -89,17 +95,31 @@ function traceFeatureLabel(traceFeatures: NonNullable<FormState['reportBody']['s
   return `featured traces of ${readable.slice(0, -1).join(', ')} and ${readable.at(-1)}`;
 }
 
-function materialDescriptorLabel(soil: FormState['reportBody']['soil']): string {
+function materialDescriptorLabel(layer: Pick<SoilLayerDescriptor, 'materialFamily' | 'clayDescriptors' | 'sandSiltDescriptors'>): string {
   const descriptors =
-    soil.primaryMaterialFamily === 'sand' || soil.primaryMaterialFamily === 'silt'
-      ? soil.sandSiltDescriptors?.map(descriptorLabel) ?? []
-      : soil.clayDescriptors?.map(descriptorLabel) ?? [];
+    layer.materialFamily === 'sand' || layer.materialFamily === 'silt'
+      ? layer.sandSiltDescriptors?.map(descriptorLabel) ?? []
+      : layer.clayDescriptors?.map(descriptorLabel) ?? [];
 
   if (descriptors.length === 0) {
-    return materialLabel(soil.primaryMaterialFamily);
+    return materialLabel(layer.materialFamily);
   }
 
-  return `${descriptors.join(', ')} ${materialLabel(soil.primaryMaterialFamily)}`;
+  return `${descriptors.join(', ')} ${materialLabel(layer.materialFamily)}`;
+}
+
+function buildSoilBaseDescriptor(layer: SoilLayerDescriptor): string {
+  return `${layer.moisture1}${layer.moisture2 ? ` to ${layer.moisture2}` : ''}, ${colourLabel(layer.colour)}, ${materialDescriptorLabel(layer)}`;
+}
+
+function buildNativeDepositSentence(layer: SoilLayerDescriptor): string {
+  const traceText = layer.traceFeatures?.length ? ` and ${traceFeatureLabel(layer.traceFeatures)}` : '';
+  const plasticityText = plasticityLabel(layer.plasticity1, layer.plasticity2);
+  const plasticitySegment = plasticityText ? ` of ${plasticityText}` : '';
+
+  return `The ${materialDescriptorLabel(layer)} was a native deposit${plasticitySegment} with a ${descriptorLabel(
+    layer.consistencyOrDensity
+  )} consistency${traceText}.`;
 }
 
 function trenchLocationLabel(location?: FormState['reportBody']['excavation']['trenchLocation']): string {
@@ -462,38 +482,67 @@ function buildP2Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
 
 function buildP3Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): GeneratedParagraph {
   const soil = formState.reportBody.soil;
-  const traceText = soil.traceFeatures?.length ? ` and ${traceFeatureLabel(soil.traceFeatures)}` : '';
-  const baseDescriptor = `${soil.moisture1}${soil.moisture2 ? ` to ${soil.moisture2}` : ''}, ${colourLabel(soil.colour)}, ${materialDescriptorLabel(
-    soil
-  )}`;
   const sentences: string[] = [];
   const clauseIds = ['P3'];
   const ruleIds = ['DT_050'];
 
   if (soil.soilLayeringMode === 'engineered_fill_over_native') {
+    const engineeredFillLayer = getEngineeredFillLayer(soil);
+    const underlyingNativeLayer = getUnderlyingNativeLayer(soil);
+    const fillDepthText = soil.fillDepthBelowFootingMm
+      ? ` by up to approximately ${formatMillimetres(soil.fillDepthBelowFootingMm)} mm below footing grade`
+      : '';
+    const fillTraceText = engineeredFillLayer.traceFeatures?.length
+      ? ` and ${traceFeatureLabel(engineeredFillLayer.traceFeatures)}`
+      : '';
+
     sentences.push(
-      `Below the clay fill material, the soil encountered was identified as ${baseDescriptor}. The ${materialDescriptorLabel(
-        soil
-      )} was a native deposit of ${plasticityLabel(soil.plasticity1, soil.plasticity2)} with a ${
-        soil.consistencyOrDensity
-      } consistency${traceText}.`
+      `Variable portions of the excavation floor were underlain${fillDepthText} by ${buildSoilBaseDescriptor(
+        engineeredFillLayer
+      )} fill with a ${descriptorLabel(engineeredFillLayer.consistencyOrDensity)} consistency${fillTraceText}.`
     );
+    sentences.push(`Below the fill, the soil encountered was identified as ${buildSoilBaseDescriptor(underlyingNativeLayer)}.`);
+    sentences.push(buildNativeDepositSentence(underlyingNativeLayer));
     clauseIds.push('CL_017');
     ruleIds.push('DT_051', 'DT_052');
   } else {
+    const traceText = soil.traceFeatures?.length ? ` and ${traceFeatureLabel(soil.traceFeatures)}` : '';
+    const baseDescriptor = buildSoilBaseDescriptor({
+      materialFamily: soil.primaryMaterialFamily,
+      clayDescriptors: soil.clayDescriptors,
+      sandSiltDescriptors: soil.sandSiltDescriptors,
+      moisture1: soil.moisture1,
+      moisture2: soil.moisture2,
+      colour: soil.colour,
+      plasticity1: soil.plasticity1,
+      plasticity2: soil.plasticity2,
+      consistencyOrDensity: soil.consistencyOrDensity,
+      traceFeatures: soil.traceFeatures
+    });
+
     sentences.push(`The soil encountered throughout the excavation floor was identified as ${baseDescriptor}.`);
 
     if (soil.primarySoilOrigin === 'native') {
-      sentences.push(
-        `The ${materialDescriptorLabel(soil)} was a native deposit of ${plasticityLabel(
-          soil.plasticity1,
-          soil.plasticity2
-        )} with a ${soil.consistencyOrDensity} consistency${traceText}.`
-      );
+      sentences.push(buildNativeDepositSentence({
+        materialFamily: soil.primaryMaterialFamily,
+        clayDescriptors: soil.clayDescriptors,
+        sandSiltDescriptors: soil.sandSiltDescriptors,
+        moisture1: soil.moisture1,
+        moisture2: soil.moisture2,
+        colour: soil.colour,
+        plasticity1: soil.plasticity1,
+        plasticity2: soil.plasticity2,
+        consistencyOrDensity: soil.consistencyOrDensity,
+        traceFeatures: soil.traceFeatures
+      }));
       ruleIds.push('DT_052');
     } else {
       sentences.push(
-        `The ${materialDescriptorLabel(soil)} was interpreted as engineered fill with a ${soil.consistencyOrDensity} consistency${traceText}.`
+        `The ${materialDescriptorLabel({
+          materialFamily: soil.primaryMaterialFamily,
+          clayDescriptors: soil.clayDescriptors,
+          sandSiltDescriptors: soil.sandSiltDescriptors
+        })} was interpreted as engineered fill with a ${descriptorLabel(soil.consistencyOrDensity)} consistency${traceText}.`
       );
     }
   }
@@ -905,6 +954,8 @@ function buildSignoffParagraph(formState: FormState): GeneratedParagraph {
   const signoff = buildSignoffModel(formState.signoff);
   const engineerName = formatSignoffName(signoff.signingEngineer.profile);
   const signoffLines = [
+    signoff.salutation,
+    '',
     signoff.organization,
     '',
     ...signoff.lines.map((line) => `${line.label}: ${line.value}`),

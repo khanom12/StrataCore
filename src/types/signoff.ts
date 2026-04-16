@@ -28,6 +28,7 @@ export interface SignoffLine {
 
 export interface SignoffModel {
   organization: string;
+  salutation: string;
   preparedBy?: ResolvedSignoffProfile;
   signingEngineer: ResolvedSignoffProfile;
   lines: SignoffLine[];

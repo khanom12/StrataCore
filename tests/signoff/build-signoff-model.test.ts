@@ -13,6 +13,7 @@ describe('buildSignoffModel', () => {
       { label: 'Prepared by', value: 'Doug Parth, E.I.T.' },
       { label: 'Reviewed by', value: 'Scott MacFarlane, P.Eng.' }
     ]);
+    expect(signoff.signingEngineer.profile.memberNumber).toBe('89667');
   });
 
   it('collapses to prepared-and-signed wording when the preparer and signing engineer are the same', () => {

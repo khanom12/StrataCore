@@ -15,7 +15,8 @@ export default function HomePage() {
         <p>
           This first runnable slice keeps the app desktop-first, local-first, and intentionally plain. The
           workflow uses the in-repo seed files for clause families, stable AUTO scope, and visible review
-          flags where the source material is still unresolved.
+          flags where the source material is still unresolved. The current default draft is pinned to the
+          Victory Homes 2026 issued example, and a generic smoke-check preset can be loaded from the form.
         </p>
         <div className="action-row">
           <Link className="button" href="/form">
@@ -46,7 +47,7 @@ export default function HomePage() {
 
         <section className="panel">
           <h2>Workflow Shape</h2>
-          <p>1. Fill out metadata and the current stable P2-P7 inputs on the form page.</p>
+          <p>1. Load the Victory Homes reference case or the generic happy path from the form page.</p>
           <p>2. Review the assembled letter preview, clause trace, filename, archive path, and warnings.</p>
           <p>3. Review the composed letter shell on the preview page and download the first-pass DOCX export.</p>
         </section>

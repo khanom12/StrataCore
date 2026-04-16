@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { composeLetterDocument } from '@/lib/document/compose-letter-document';
-import { defaultFormState } from '@/lib/draft/default-form-state';
 import { buildDocx } from '@/lib/export/build-docx';
 import { generateLetter } from '@/lib/generation/generate-letter';
+import { victoryHomes2026IssuedExample } from '@/lib/reference-cases/victory-homes-2026';
 import type { FormState } from '@/types/domain';
 
 function cloneFormState(): FormState {
-  return JSON.parse(JSON.stringify(defaultFormState)) as FormState;
+  return JSON.parse(JSON.stringify(victoryHomes2026IssuedExample)) as FormState;
 }
 
 describe('buildDocx', () => {

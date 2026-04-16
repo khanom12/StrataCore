@@ -240,6 +240,26 @@ textarea {
   font-size: 0.92rem;
 }
 
+.align-left {
+  text-align: left;
+}
+
+.align-center {
+  text-align: center;
+}
+
+.align-right {
+  text-align: right;
+}
+
+details.preview-card summary {
+  cursor: pointer;
+}
+
+details.preview-card[open] summary {
+  margin-bottom: 14px;
+}
+
 @media (max-width: 860px) {
   .grid-two,
   .grid-three,

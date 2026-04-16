@@ -2,6 +2,7 @@ import type { ClauseRef, ReviewFlag, RuleRef, SectionId } from '@/types/domain';
 
 export type DocumentPageKind = 'first_page' | 'continuation_page';
 export type DocumentReadinessStatus = 'ready' | 'warning' | 'review_required';
+export type DocumentAlignment = 'left' | 'center' | 'right';
 export type DocumentBlockKind =
   | 'header_block'
   | 'metadata_block'
@@ -14,6 +15,7 @@ export type DocumentBlockKind =
 interface DocumentBlockBase {
   id: string;
   kind: DocumentBlockKind;
+  alignment?: DocumentAlignment;
 }
 
 export interface HeaderBlock extends DocumentBlockBase {
@@ -44,6 +46,7 @@ export interface ParagraphBlock extends DocumentBlockBase {
 export interface SignoffBlock extends DocumentBlockBase {
   kind: 'signoff_block';
   title: string;
+  salutationLine: string;
   organization: string;
   lines: Array<{
     label: string;

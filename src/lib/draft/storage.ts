@@ -1,5 +1,5 @@
 import { defaultFormState } from '@/lib/draft/default-form-state';
-import type { FormState } from '@/types/domain';
+import type { FormState, SoilLayerDescriptor } from '@/types/domain';
 
 const STORAGE_KEY = 'stratacore-letter-draft';
 
@@ -172,6 +172,59 @@ type DeepPartial<T> = {
       : T[K];
 };
 
+function sanitizeSoilLayerDescriptor(
+  value: unknown,
+  fallback?: SoilLayerDescriptor
+): SoilLayerDescriptor | undefined {
+  const layer = isRecord(value) ? value : {};
+
+  if (!fallback && Object.keys(layer).length === 0) {
+    return undefined;
+  }
+
+  const materialFamily = readEnum(layer.materialFamily, PRIMARY_MATERIAL_FAMILIES) ?? fallback?.materialFamily;
+  const moisture1 = readEnum(layer.moisture1, MOISTURE_DESCRIPTORS) ?? fallback?.moisture1;
+  const colour = readEnum(layer.colour, SOIL_COLOURS) ?? fallback?.colour;
+  const consistencyOrDensity =
+    readEnum(layer.consistencyOrDensity, CONSISTENCY_DENSITY_DESCRIPTORS) ?? fallback?.consistencyOrDensity;
+
+  if (!materialFamily || !moisture1 || !colour || !consistencyOrDensity) {
+    return fallback;
+  }
+
+  return {
+    materialFamily,
+    clayDescriptors: readEnumArray(layer.clayDescriptors, CLAY_DESCRIPTORS) ?? fallback?.clayDescriptors,
+    sandSiltDescriptors: readEnumArray(layer.sandSiltDescriptors, SAND_SILT_DESCRIPTORS) ?? fallback?.sandSiltDescriptors,
+    moisture1,
+    moisture2:
+      readEnum(layer.moisture2, MOISTURE_DESCRIPTORS.filter((item) => item !== 'damp') as ['moist', 'very_moist', 'wet']) ??
+      fallback?.moisture2,
+    colour,
+    plasticity1: readEnum(layer.plasticity1, PLASTICITY_DESCRIPTORS) ?? fallback?.plasticity1,
+    plasticity2:
+      readEnum(layer.plasticity2, PLASTICITY_DESCRIPTORS.filter((item) => item !== 'low') as ['medium', 'high']) ??
+      fallback?.plasticity2,
+    consistencyOrDensity,
+    traceFeatures: readEnumArray(layer.traceFeatures, TRACE_FEATURES) ?? fallback?.traceFeatures
+  };
+}
+
+function buildLegacyLayerFallback(soil: FormState['reportBody']['soil']): SoilLayerDescriptor {
+  return {
+    materialFamily: soil.primaryMaterialFamily,
+    clayDescriptors: soil.clayDescriptors,
+    sandSiltDescriptors: soil.sandSiltDescriptors,
+    moisture1: soil.moisture1,
+    moisture2: soil.moisture2,
+    colour: soil.colour,
+    plasticity1: soil.plasticity1,
+    plasticity2: soil.plasticity2,
+    consistencyOrDensity: soil.consistencyOrDensity,
+    traceFeatures: soil.traceFeatures
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object';
 }
@@ -224,6 +277,45 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
   const winter = isRecord(reportBody.winter) ? reportBody.winter : {};
   const signoff = isRecord(root.signoff) ? root.signoff : {};
 
+  const normalizedSoil: FormState['reportBody']['soil'] = {
+    soilLayeringMode: readEnum(soil.soilLayeringMode, SOIL_LAYERING_MODES) ?? defaultFormState.reportBody.soil.soilLayeringMode,
+    primarySoilOrigin: readEnum(soil.primarySoilOrigin, PRIMARY_SOIL_ORIGINS) ?? defaultFormState.reportBody.soil.primarySoilOrigin,
+    primaryMaterialFamily:
+      readEnum(soil.primaryMaterialFamily, PRIMARY_MATERIAL_FAMILIES) ?? defaultFormState.reportBody.soil.primaryMaterialFamily,
+    clayDescriptors: readEnumArray(soil.clayDescriptors, CLAY_DESCRIPTORS) ?? defaultFormState.reportBody.soil.clayDescriptors,
+    sandSiltDescriptors:
+      readEnumArray(soil.sandSiltDescriptors, SAND_SILT_DESCRIPTORS) ?? defaultFormState.reportBody.soil.sandSiltDescriptors,
+    moisture1: readEnum(soil.moisture1, MOISTURE_DESCRIPTORS) ?? defaultFormState.reportBody.soil.moisture1,
+    moisture2:
+      readEnum(soil.moisture2, MOISTURE_DESCRIPTORS.filter((item) => item !== 'damp') as ['moist', 'very_moist', 'wet']) ??
+      defaultFormState.reportBody.soil.moisture2,
+    colour: readEnum(soil.colour, SOIL_COLOURS) ?? defaultFormState.reportBody.soil.colour,
+    plasticity1: readEnum(soil.plasticity1, PLASTICITY_DESCRIPTORS) ?? defaultFormState.reportBody.soil.plasticity1,
+    plasticity2:
+      readEnum(soil.plasticity2, PLASTICITY_DESCRIPTORS.filter((item) => item !== 'low') as ['medium', 'high']) ??
+      defaultFormState.reportBody.soil.plasticity2,
+    consistencyOrDensity:
+      readEnum(soil.consistencyOrDensity, CONSISTENCY_DENSITY_DESCRIPTORS) ??
+      defaultFormState.reportBody.soil.consistencyOrDensity,
+    traceFeatures: readEnumArray(soil.traceFeatures, TRACE_FEATURES) ?? defaultFormState.reportBody.soil.traceFeatures,
+    fillDepthBelowFootingMm: readNumber(soil.fillDepthBelowFootingMm) ?? defaultFormState.reportBody.soil.fillDepthBelowFootingMm,
+    highPlasticWarning: readBoolean(soil.highPlasticWarning) ?? defaultFormState.reportBody.soil.highPlasticWarning
+  };
+
+  if (normalizedSoil.soilLayeringMode === 'engineered_fill_over_native') {
+    const defaultFillLayer = buildLegacyLayerFallback(defaultFormState.reportBody.soil);
+    const legacyLayerFallback = buildLegacyLayerFallback(normalizedSoil);
+
+    normalizedSoil.engineeredFillLayer =
+      sanitizeSoilLayerDescriptor(soil.engineeredFillLayer, legacyLayerFallback ?? defaultFormState.reportBody.soil.engineeredFillLayer ?? defaultFillLayer) ??
+      legacyLayerFallback;
+    normalizedSoil.underlyingNativeLayer =
+      sanitizeSoilLayerDescriptor(
+        soil.underlyingNativeLayer,
+        legacyLayerFallback ?? defaultFormState.reportBody.soil.underlyingNativeLayer ?? defaultFillLayer
+      ) ?? legacyLayerFallback;
+  }
+
   return {
     topBlock: {
       letterDate: readString(topBlock.letterDate) ?? defaultFormState.topBlock.letterDate,
@@ -271,27 +363,7 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
         exposedElectricalTrench: readBoolean(excavation.exposedElectricalTrench) ?? defaultFormState.reportBody.excavation.exposedElectricalTrench,
         groundHeatingSystem: readBoolean(excavation.groundHeatingSystem) ?? defaultFormState.reportBody.excavation.groundHeatingSystem
       },
-      soil: {
-        soilLayeringMode: readEnum(soil.soilLayeringMode, SOIL_LAYERING_MODES) ?? defaultFormState.reportBody.soil.soilLayeringMode,
-        primarySoilOrigin: readEnum(soil.primarySoilOrigin, PRIMARY_SOIL_ORIGINS) ?? defaultFormState.reportBody.soil.primarySoilOrigin,
-        primaryMaterialFamily:
-          readEnum(soil.primaryMaterialFamily, PRIMARY_MATERIAL_FAMILIES) ?? defaultFormState.reportBody.soil.primaryMaterialFamily,
-        clayDescriptors: readEnumArray(soil.clayDescriptors, CLAY_DESCRIPTORS) ?? defaultFormState.reportBody.soil.clayDescriptors,
-        sandSiltDescriptors:
-          readEnumArray(soil.sandSiltDescriptors, SAND_SILT_DESCRIPTORS) ?? defaultFormState.reportBody.soil.sandSiltDescriptors,
-        moisture1: readEnum(soil.moisture1, MOISTURE_DESCRIPTORS) ?? defaultFormState.reportBody.soil.moisture1,
-        moisture2: readEnum(soil.moisture2, MOISTURE_DESCRIPTORS.filter((item) => item !== 'damp') as ['moist', 'very_moist', 'wet']) ?? defaultFormState.reportBody.soil.moisture2,
-        colour: readEnum(soil.colour, SOIL_COLOURS) ?? defaultFormState.reportBody.soil.colour,
-        plasticity1: readEnum(soil.plasticity1, PLASTICITY_DESCRIPTORS) ?? defaultFormState.reportBody.soil.plasticity1,
-        plasticity2:
-          readEnum(soil.plasticity2, PLASTICITY_DESCRIPTORS.filter((item) => item !== 'low') as ['medium', 'high']) ??
-          defaultFormState.reportBody.soil.plasticity2,
-        consistencyOrDensity:
-          readEnum(soil.consistencyOrDensity, CONSISTENCY_DENSITY_DESCRIPTORS) ??
-          defaultFormState.reportBody.soil.consistencyOrDensity,
-        traceFeatures: readEnumArray(soil.traceFeatures, TRACE_FEATURES) ?? defaultFormState.reportBody.soil.traceFeatures,
-        highPlasticWarning: readBoolean(soil.highPlasticWarning) ?? defaultFormState.reportBody.soil.highPlasticWarning
-      },
+      soil: normalizedSoil,
       recommendation: {
         footingBasis: readEnum(recommendation.footingBasis, FOOTING_BASIS_OPTIONS) ?? defaultFormState.reportBody.recommendation.footingBasis,
         spreadFootingFamily:

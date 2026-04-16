@@ -138,6 +138,19 @@ export type DensityOrConsistencyDescriptor =
   | 'very_dense';
 export type TraceFeature = 'oxides' | 'white_precipitates' | 'coal' | 'gravel' | 'organics' | 'rootlets';
 
+export interface SoilLayerDescriptor {
+  materialFamily: PrimaryMaterialFamily;
+  clayDescriptors?: ClayDescriptor[];
+  sandSiltDescriptors?: SandSiltDescriptor[];
+  moisture1: MoistureDescriptor;
+  moisture2?: Exclude<MoistureDescriptor, 'damp'>;
+  colour: SoilColour;
+  plasticity1?: PlasticityDescriptor;
+  plasticity2?: Exclude<PlasticityDescriptor, 'low'>;
+  consistencyOrDensity: DensityOrConsistencyDescriptor;
+  traceFeatures?: TraceFeature[];
+}
+
 export interface SoilInputs {
   soilLayeringMode: SoilLayeringMode;
   primarySoilOrigin: PrimarySoilOrigin;
@@ -151,6 +164,9 @@ export interface SoilInputs {
   plasticity2?: Exclude<PlasticityDescriptor, 'low'>;
   consistencyOrDensity: DensityOrConsistencyDescriptor;
   traceFeatures?: TraceFeature[];
+  engineeredFillLayer?: SoilLayerDescriptor;
+  underlyingNativeLayer?: SoilLayerDescriptor;
+  fillDepthBelowFootingMm?: number;
   highPlasticWarning?: boolean;
 }
 

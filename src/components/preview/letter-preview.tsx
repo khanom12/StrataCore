@@ -7,6 +7,7 @@ import { composeLetterDocument } from '@/lib/document/compose-letter-document';
 import { defaultFormState } from '@/lib/draft/default-form-state';
 import { loadDraftState } from '@/lib/draft/storage';
 import { generateLetter } from '@/lib/generation/generate-letter';
+import { identifyReferenceCasePreset } from '@/lib/reference-cases';
 import type { FormState } from '@/types/domain';
 import type { ComposedLetterPage, LetterDocumentBodyBlock } from '@/types/document';
 
@@ -15,16 +16,36 @@ function parseFilenameFromDisposition(headerValue: string | null, fallback: stri
   return match?.[1] ?? fallback;
 }
 
+function alignmentClassName(alignment?: LetterDocumentBodyBlock['alignment']) {
+  switch (alignment) {
+    case 'center':
+      return 'align-center';
+    case 'right':
+      return 'align-right';
+    default:
+      return 'align-left';
+  }
+}
+
 function renderBodyBlock(block: LetterDocumentBodyBlock) {
   switch (block.kind) {
     case 'metadata_block':
-      return <div className="letter-block">{block.lines.join('\n')}</div>;
+      return <div className={`letter-block ${alignmentClassName(block.alignment)}`}>{block.lines.join('\n')}</div>;
     case 'paragraph_block':
-      return <div className="letter-block">{block.text}</div>;
+      return <div className={`letter-block ${alignmentClassName(block.alignment)}`}>{block.text}</div>;
     case 'signoff_block':
       return (
-        <div className="letter-block">
-          {[block.organization, '', ...block.lines.map((line) => `${line.label}: ${line.value}`), block.engineerMemberNumberLine, block.stampPlaceholderLine, block.permitToPracticeLine].join('\n')}
+        <div className={`letter-block ${alignmentClassName(block.alignment)}`}>
+          {[
+            block.salutationLine,
+            '',
+            block.organization,
+            '',
+            ...block.lines.map((line) => `${line.label}: ${line.value}`),
+            block.engineerMemberNumberLine,
+            block.stampPlaceholderLine,
+            block.permitToPracticeLine
+          ].join('\n')}
         </div>
       );
     case 'spacer_block':
@@ -39,7 +60,7 @@ function renderPage(page: ComposedLetterPage) {
     <article key={page.id} className="page-shell">
       <div className="page-chrome">
         <p className="muted">{page.kind === 'first_page' ? 'First page' : 'Continuation page'}</p>
-        <div className="letter-block">{page.headerBlock.lines.join('\n')}</div>
+        <div className={`letter-block ${alignmentClassName(page.headerBlock.alignment)}`}>{page.headerBlock.lines.join('\n')}</div>
       </div>
 
       {page.bodyBlocks.map((block) => (
@@ -49,7 +70,7 @@ function renderPage(page: ComposedLetterPage) {
       ))}
 
       <div className="page-chrome footer-block">
-        <div className="letter-block">{page.footerBlock.lines.join('\n')}</div>
+        <div className={`letter-block ${alignmentClassName(page.footerBlock.alignment)}`}>{page.footerBlock.lines.join('\n')}</div>
       </div>
     </article>
   );
@@ -61,6 +82,7 @@ export function LetterPreview() {
   const [isExporting, setIsExporting] = useState(false);
   const result = useMemo(() => generateLetter(draftState), [draftState]);
   const documentModel = useMemo(() => composeLetterDocument(draftState, result), [draftState, result]);
+  const matchedPreset = useMemo(() => identifyReferenceCasePreset(draftState), [draftState]);
 
   useEffect(() => {
     setDraftState(loadDraftState());
@@ -102,65 +124,73 @@ export function LetterPreview() {
 
   return (
     <>
-      <div className="preview-meta">
-        <section className="preview-card">
-          <h2>Export Readiness</h2>
-          <p>
-            <strong>Status</strong>
-          </p>
-          <p className="mono">{documentModel.readiness.label}</p>
-          <p>
-            <strong>Filename</strong>
-          </p>
-          <p className="mono">{documentModel.filename}</p>
-          <p>
-            <strong>Archive path</strong>
-          </p>
-          <p className="mono">{documentModel.archivePath}</p>
-          <div className="button-row">
-            <Link className="button secondary" href="/form">
-              Back to form
-            </Link>
-            <button type="button" onClick={requestExport} disabled={isExporting}>
-              {isExporting ? 'Generating DOCX...' : 'Download DOCX'}
-            </button>
+      <section className="preview-card">
+        <h2>Current Draft</h2>
+        <p>
+          <strong>Preset status</strong>
+        </p>
+        <p>{matchedPreset ? `${matchedPreset.label} (${matchedPreset.presetKind === 'reference' ? 'reference preset' : 'smoke preset'})` : 'Live edited draft'}</p>
+        <p>
+          <strong>Export readiness</strong>
+        </p>
+        <p className="mono">{documentModel.readiness.label}</p>
+        <p>
+          <strong>Filename</strong>
+        </p>
+        <p className="mono">{documentModel.filename}</p>
+        <p>
+          <strong>Archive path</strong>
+        </p>
+        <p className="mono">{documentModel.archivePath}</p>
+        <p>
+          <strong>Business review flags</strong>
+        </p>
+        <p>{documentModel.reviewFlags.length === 0 ? 'No review flags are currently raised.' : `${documentModel.reviewFlags.length} review flag(s) remain visible for analyst review.`}</p>
+        {documentModel.exportWarnings.length > 0 ? (
+          <div className="note">
+            <strong>Fidelity / asset warnings</strong>
+            {documentModel.exportWarnings.map((warning) => (
+              <p key={warning}>{warning}</p>
+            ))}
           </div>
-          {exportMessage ? <div className="note"><strong>{exportMessage}</strong></div> : null}
-          {documentModel.exportWarnings.length > 0 ? (
-            <div className="note">
-              <strong>Export warnings</strong>
-              {documentModel.exportWarnings.map((warning) => (
-                <p key={warning}>{warning}</p>
-              ))}
-            </div>
-          ) : null}
-        </section>
-
-        <section className="preview-card">
-          <h2>Analyst / Debug View</h2>
-          <p className="mono">Sections: {documentModel.visibleSections.join(', ')}</p>
-          <p className="mono">Clauses: {documentModel.clauseRefsUsed.map((ref) => ref.id).join(', ')}</p>
-          <p className="mono">Rules: {documentModel.ruleRefsUsed.map((ref) => ref.id).join(', ')}</p>
-          {documentModel.reviewFlags.length === 0 ? <p>No review flags were raised for this draft.</p> : null}
-          {documentModel.reviewFlags.map((flag) => (
-            <div key={flag.id} className="flag">
-              <strong>
-                {flag.title} ({flag.severity})
-              </strong>
-              <p>{flag.message}</p>
-              <p className="mono">
-                Section: {flag.relatedSectionId ?? 'n/a'} | Rules: {flag.ruleRefs.map((ref) => ref.id).join(', ') || 'n/a'} | Clauses:{' '}
-                {flag.clauseRefs.map((ref) => ref.id).join(', ') || 'n/a'}
-              </p>
-            </div>
-          ))}
-        </section>
-      </div>
+        ) : null}
+        <div className="button-row">
+          <Link className="button secondary" href="/form">
+            Back to form
+          </Link>
+          <button type="button" onClick={requestExport} disabled={isExporting}>
+            {isExporting ? 'Generating DOCX...' : 'Download DOCX'}
+          </button>
+        </div>
+        {exportMessage ? <div className="note"><strong>{exportMessage}</strong></div> : null}
+      </section>
 
       <section className="preview-card">
         <h2>Formatted Draft View</h2>
         {documentModel.pages.map((page) => renderPage(page))}
       </section>
+
+      <details className="preview-card">
+        <summary>
+          <strong>Analyst / Debug View</strong>
+        </summary>
+        <p className="mono">Sections: {documentModel.visibleSections.join(', ')}</p>
+        <p className="mono">Clauses: {documentModel.clauseRefsUsed.map((ref) => ref.id).join(', ')}</p>
+        <p className="mono">Rules: {documentModel.ruleRefsUsed.map((ref) => ref.id).join(', ')}</p>
+        {documentModel.reviewFlags.length === 0 ? <p>No review flags were raised for this draft.</p> : null}
+        {documentModel.reviewFlags.map((flag) => (
+          <div key={flag.id} className="flag">
+            <strong>
+              {flag.title} ({flag.severity})
+            </strong>
+            <p>{flag.message}</p>
+            <p className="mono">
+              Section: {flag.relatedSectionId ?? 'n/a'} | Rules: {flag.ruleRefs.map((ref) => ref.id).join(', ') || 'n/a'} | Clauses:{' '}
+              {flag.clauseRefs.map((ref) => ref.id).join(', ') || 'n/a'}
+            </p>
+          </div>
+        ))}
+      </details>
     </>
   );
 }

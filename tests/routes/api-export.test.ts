@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { POST } from '@/app/api/export/route';
+import { victoryHomes2026IssuedExample } from '@/lib/reference-cases/victory-homes-2026';
 
 describe('/api/export', () => {
   it('returns a downloadable DOCX response with the computed filename', async () => {
@@ -10,7 +11,7 @@ describe('/api/export', () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({})
+        body: JSON.stringify(victoryHomes2026IssuedExample)
       })
     );
 

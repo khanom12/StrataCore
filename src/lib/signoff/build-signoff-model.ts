@@ -39,6 +39,7 @@ export function buildSignoffModel(signoff: SignoffInputs): SignoffModel {
 
   return {
     organization: 'J.R. Paine & Associates Ltd.',
+    salutation: 'Yours truly,',
     preparedBy,
     signingEngineer,
     lines,

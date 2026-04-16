@@ -10,6 +10,7 @@ Current scope in this prototype:
 - review flag handling for unresolved rule families
 - seed-backed clause/rule usage
 - first-pass DOCX export built from the composed letter shell
+- explicit reference presets, including the Victory Homes 2026 issued-example fixture
 
 ## Run locally
 
@@ -44,21 +45,23 @@ npm run dev
 3. Run `npm run build`
 4. Run `npm run dev`
 5. Open `/form` and `/preview` in the local Next.js URL shown in the terminal
-6. Save a draft from `/form`, then confirm `/preview` shows export readiness, review flags/trace, and the composed draft pages
-7. Click `Download DOCX` on `/preview` and expect a real `.docx` file to download
-8. POST to `/api/generate` and expect normalized generation JSON
-9. POST to `/api/export` and expect a DOCX attachment response
+6. On `/form`, load `Victory Homes 2026` or `Generic happy path`
+7. Save a draft from `/form`, then confirm `/preview` shows export readiness, review flags/trace, and the composed draft pages
+8. Click `Download DOCX` on `/preview` and expect a real `.docx` file to download
+9. POST to `/api/generate` and expect normalized generation JSON
+10. POST to `/api/export` and expect a DOCX attachment response
 
 ## Workflow
 
 - `/` shows the seed-backed repo summary and routes into the workflow.
-- `/form` captures the current structured inputs.
-- `/preview` shows the analyst/debug panel, the composed draft shell, and the live DOCX download action.
+- `/form` captures the current structured inputs and can load the Victory Homes reference preset or the generic smoke-check preset.
+- `/preview` shows the formatted draft first, a secondary analyst/debug panel, and the live DOCX download action.
 - `/api/export` returns a first-pass DOCX generated from the composed document model.
 
-## Notes
+## Known limitations
 
 - The stable AUTO path is implemented first.
 - Review-sensitive branches remain visible through review flags instead of being silently decided in code.
 - DOCX export is code-generated, not template-perfect yet.
-- Office address/footer branding and some engineer asset details still use typed placeholders until the exact assets are confirmed.
+- Engineer stamp and permit-to-practice assets are still text placeholders until the real office image assets are added.
+- Review-only edge families such as engineered fill by others / unknown, rare remediation packages, and spread-footing conflicts remain intentionally deferred for analyst review.

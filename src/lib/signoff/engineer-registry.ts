@@ -12,8 +12,49 @@ const REGISTRY: SignoffProfile[] = [
     aliases: ['Scott MacFarlane', 'Scott MacFarlane, P.Eng.'],
     name: 'Scott MacFarlane',
     designation: 'P.Eng.',
+    memberNumber: '89667',
     stampAssetKey: 'scott-macfarlane-stamp',
     stampAssetLabel: 'Engineer stamp placeholder'
+  },
+  {
+    key: 'patrick-winski',
+    aliases: ['Patrick Winski', 'Patrick Winski, P.Eng.'],
+    name: 'Patrick Winski',
+    designation: 'P.Eng.',
+    memberNumber: '71849',
+    stampAssetKey: 'patrick-winski-stamp'
+  },
+  {
+    key: 'danny-trommelen',
+    aliases: ['Danny Trommelen', 'Danny Trommelen, P.Eng.'],
+    name: 'Danny Trommelen',
+    designation: 'P.Eng.',
+    memberNumber: '135832',
+    stampAssetKey: 'danny-trommelen-stamp'
+  },
+  {
+    key: 'alan-lang',
+    aliases: ['Alan Lang', 'Alan Lang, P.Eng.'],
+    name: 'Alan Lang',
+    designation: 'P.Eng.',
+    memberNumber: '46743',
+    stampAssetKey: 'alan-lang-stamp'
+  },
+  {
+    key: 'abe-rahime',
+    aliases: ['Abe Rahime', 'Abe Rahime, P.Eng.'],
+    name: 'Abe Rahime',
+    designation: 'P.Eng.',
+    memberNumber: '67871',
+    stampAssetKey: 'abe-rahime-stamp'
+  },
+  {
+    key: 'john-tsoi',
+    aliases: ['John Tsoi', 'John Tsoi, P.Eng.'],
+    name: 'John Tsoi',
+    designation: 'P.Eng.',
+    memberNumber: '76087',
+    stampAssetKey: 'john-tsoi-stamp'
   }
 ];
 
