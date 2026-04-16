@@ -1,5 +1,5 @@
 export type SectionId =
-  | 'META'
+  | 'TOP_BLOCK'
   | 'P1'
   | 'P2'
   | 'P3'
@@ -7,10 +7,10 @@ export type SectionId =
   | 'P5'
   | 'P6'
   | 'P7'
-  | 'P8'
-  | 'SIG';
+  | 'CLOSING'
+  | 'SIGNOFF';
 
-export type ReviewSeverity = 'info' | 'review' | 'block';
+export type ReviewSeverity = 'info' | 'warning' | 'blocker';
 
 export interface ClauseRef {
   id: string;
@@ -19,141 +19,196 @@ export interface ClauseRef {
 
 export interface RuleRef {
   id: string;
-}
-
-export interface ReviewFlag {
-  code: string;
-  severity: ReviewSeverity;
-  message: string;
-  sourceRuleIds?: string[];
-  sourceClauseIds?: string[];
+  title?: string;
 }
 
 export interface GeneratedParagraph {
   id: string;
-  section: SectionId;
-  title: string;
+  sectionId: SectionId;
   text: string;
-  clauseIds: string[];
-  ruleIds: string[];
-  needsReview?: boolean;
+  order: number;
+  label?: string;
+  clauseRefs: ClauseRef[];
+  ruleRefs: RuleRef[];
+  reviewSensitive: boolean;
 }
 
-export interface MetaState {
+export interface ReviewFlag {
+  id: string;
+  title: string;
+  message: string;
+  severity: ReviewSeverity;
+  relatedSectionId?: SectionId;
+  clauseRefs: ClauseRef[];
+  ruleRefs: RuleRef[];
+}
+
+export interface LegalDescriptionInput {
+  include: boolean;
+  lot?: string;
+  block?: string;
+  plan?: string;
+}
+
+export interface ClientJobNumberInput {
+  include: boolean;
+  value?: string;
+}
+
+export interface SubdivisionInput {
+  include: boolean;
+  value?: string;
+}
+
+export interface TopBlockInputs {
   letterDate: string;
   fileNumber: string;
   clientName: string;
   clientMailingAddress: string[];
   headingSuffix?: string;
-  includeLegalDescription: boolean;
-  lot?: string;
-  block?: string;
-  plan?: string;
+  legalDescription: LegalDescriptionInput;
   streetAddress: string;
-  includeClientJobNumber?: boolean;
-  clientJobNumber?: string;
-  includeSubdivision?: boolean;
-  subdivision?: string;
+  clientJobNumber: ClientJobNumberInput;
+  subdivision: SubdivisionInput;
   municipality: string;
+}
+
+export interface ArchiveMetadata {
   hNumber: string;
 }
 
-export interface P2State {
-  minCutM?: number;
-  maxCutM?: number;
-  garageMode: 'none' | 'same_elevation' | 'higher_than_house';
+export interface HouseFootingCutDepthsM {
+  frontLeftM?: number;
+  frontRightM?: number;
+  rearLeftM?: number;
+  rearRightM?: number;
+}
+
+export type GarageMode = 'none' | 'same_elevation' | 'higher_than_house';
+export type AsConstructedMode = 'none' | 'poured_18in' | 'poured_20in' | 'poured_24in' | 'walls_and_footing';
+export type ConstructionStage = 'normal' | 'nearly_complete' | 'framing';
+export type SiteHistory = 'none' | 'infill' | 'knockdown_rebuild';
+export type TrenchLocation = 'front' | 'front_left' | 'front_right';
+export type RainSoftenedMode = 'none' | 'saturated_soft_surficial' | 'standing_water_rain_softened';
+
+export interface ExcavationInputs {
+  inspectionDate: string;
+  houseFootingCutDepthsM: HouseFootingCutDepthsM;
+  garageMode: GarageMode;
   garageOffsetAboveHouseM?: number;
   walkoutBasement?: boolean;
   gardenSuiteMode?: boolean;
-  asConstructedMode?: 'none' | 'poured_18in' | 'poured_20in' | 'poured_24in' | 'walls_and_footing';
-  constructionStage?: 'normal' | 'nearly_complete' | 'framing';
-  siteHistory?: 'none' | 'infill' | 'knockdown_rebuild';
+  asConstructedMode?: AsConstructedMode;
+  constructionStage?: ConstructionStage;
+  siteHistory?: SiteHistory;
   oversizedTrench?: boolean;
-  trenchLocation?: 'front' | 'front_left' | 'front_right';
+  trenchLocation?: TrenchLocation;
   sloughMaterial?: boolean;
   loosePeelingMaterial?: boolean;
   frostDepthMm?: number;
   freeWaterInAugerHoles?: boolean;
   waterContext?: string;
-  rainSoftenedMode?: 'none' | 'saturated_soft_surficial' | 'standing_water_rain_softened';
+  rainSoftenedMode?: RainSoftenedMode;
   snowDepthMm?: number;
   exposedElectricalTrench?: boolean;
   groundHeatingSystem?: boolean;
 }
 
-export interface P3State {
-  soilLayeringMode: 'single_layer' | 'engineered_fill_over_native';
-  primarySoilOrigin:
-    | 'native'
-    | 'engineered_fill_jrp'
-    | 'engineered_fill_jrp_and_others'
-    | 'engineered_fill_others'
-    | 'engineered_fill_unknown';
-  primaryMaterialFamily: 'clay' | 'clay_till' | 'sand' | 'silt' | 'clayey_sand' | 'clayey_silt';
-  clayDescriptors?: Array<'silty' | 'very_silty' | 'sandy' | 'very_sandy'>;
-  sandSiltDescriptors?: Array<'coarse' | 'medium' | 'fine' | 'well_graded' | 'poorly_graded'>;
-  moisture1: 'damp' | 'moist' | 'very_moist' | 'wet';
-  moisture2?: 'moist' | 'very_moist' | 'wet';
-  colour: 'brown' | 'grey' | 'brown_and_grey' | 'brown_and_dark_grey' | 'dark_grey' | 'black' | 'reddish_brown';
-  plasticity1: 'low' | 'medium' | 'high';
-  plasticity2?: 'medium' | 'high';
-  consistencyOrDensity:
-    | 'soft'
-    | 'firm'
-    | 'stiff'
-    | 'very_stiff'
-    | 'hard'
-    | 'very_loose'
-    | 'loose'
-    | 'compact'
-    | 'dense'
-    | 'very_dense';
-  traceFeatures?: Array<'oxides' | 'white_precipitates' | 'coal' | 'gravel' | 'organics' | 'rootlets'>;
+export type SoilLayeringMode = 'single_layer' | 'engineered_fill_over_native';
+export type PrimarySoilOrigin =
+  | 'native'
+  | 'engineered_fill_jrp'
+  | 'engineered_fill_jrp_and_others'
+  | 'engineered_fill_others'
+  | 'engineered_fill_unknown';
+export type PrimaryMaterialFamily = 'clay' | 'clay_till' | 'sand' | 'silt' | 'clayey_sand' | 'clayey_silt';
+export type ClayDescriptor = 'silty' | 'very_silty' | 'sandy' | 'very_sandy';
+export type SandSiltDescriptor = 'coarse' | 'medium' | 'fine' | 'well_graded' | 'poorly_graded';
+export type MoistureDescriptor = 'damp' | 'moist' | 'very_moist' | 'wet';
+export type SoilColour =
+  | 'brown'
+  | 'grey'
+  | 'brown_and_grey'
+  | 'brown_and_dark_grey'
+  | 'dark_grey'
+  | 'black'
+  | 'reddish_brown';
+export type PlasticityDescriptor = 'low' | 'medium' | 'high';
+export type DensityOrConsistencyDescriptor =
+  | 'soft'
+  | 'firm'
+  | 'stiff'
+  | 'very_stiff'
+  | 'hard'
+  | 'very_loose'
+  | 'loose'
+  | 'compact'
+  | 'dense'
+  | 'very_dense';
+export type TraceFeature = 'oxides' | 'white_precipitates' | 'coal' | 'gravel' | 'organics' | 'rootlets';
+
+export interface SoilInputs {
+  soilLayeringMode: SoilLayeringMode;
+  primarySoilOrigin: PrimarySoilOrigin;
+  primaryMaterialFamily: PrimaryMaterialFamily;
+  clayDescriptors?: ClayDescriptor[];
+  sandSiltDescriptors?: SandSiltDescriptor[];
+  moisture1: MoistureDescriptor;
+  moisture2?: Exclude<MoistureDescriptor, 'damp'>;
+  colour: SoilColour;
+  plasticity1: PlasticityDescriptor;
+  plasticity2?: Exclude<PlasticityDescriptor, 'low'>;
+  consistencyOrDensity: DensityOrConsistencyDescriptor;
+  traceFeatures?: TraceFeature[];
   highPlasticWarning?: boolean;
 }
 
-export interface P4State {
-  footingBasis: 'standard' | 'modified';
-  spreadFootingMode: 'omit' | 'default_140_kpa' | 'review_100_kpa';
-}
+export type FootingBasis = 'standard' | 'modified';
+export type SpreadFootingFamily = 'omit' | 'default_140_kpa' | 'review_100_kpa';
 
-export interface P5State {
+export interface RecommendationInputs {
+  footingBasis: FootingBasis;
+  spreadFootingFamily: SpreadFootingFamily;
   garageSlabOrganics?: boolean;
 }
 
-export interface P6State {
-  includeSulphateParagraph?: boolean;
-  sulphateClass?: 'negligible' | 'moderate' | 'severe' | 'very_severe';
+export type SulphateClass = 'negligible' | 'moderate' | 'severe' | 'very_severe';
+
+export interface SulphateInputs {
+  includeParagraph: boolean;
+  sulphateClass?: SulphateClass;
 }
 
-export interface P7State {
-  includeWinterParagraph: boolean;
+export interface WinterConstructionInputs {
+  includeParagraph: boolean;
 }
 
-export interface SignoffState {
+export interface ReportBodyInputs {
+  excavation: ExcavationInputs;
+  soil: SoilInputs;
+  recommendations: RecommendationInputs;
+  sulphate: SulphateInputs;
+  winterConstruction: WinterConstructionInputs;
+}
+
+export interface SignoffInputs {
   preparedBy?: string;
   signingEngineer: string;
 }
 
 export interface FormState {
-  meta: MetaState;
-  inspectionDate: string;
-  p2: P2State;
-  p3: P3State;
-  p4: P4State;
-  p5?: P5State;
-  p6?: P6State;
-  p7: P7State;
-  signoff: SignoffState;
+  topBlock: TopBlockInputs;
+  archive: ArchiveMetadata;
+  reportBody: ReportBodyInputs;
+  signoff: SignoffInputs;
 }
 
 export interface GenerationResult {
-  visibleSections: SectionId[];
-  paragraphs: GeneratedParagraph[];
-  clauseIds: string[];
-  ruleIds: string[];
+  visibleSectionIds: SectionId[];
+  orderedParagraphs: GeneratedParagraph[];
   reviewFlags: ReviewFlag[];
   filename: string;
   archivePath: string;
+  clauseRefsUsed: ClauseRef[];
+  ruleRefsUsed: RuleRef[];
 }
-

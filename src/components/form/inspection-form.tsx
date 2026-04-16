@@ -6,7 +6,7 @@ import { useEffect, useState, type ChangeEvent } from 'react';
 
 import { defaultFormState } from '@/lib/draft/default-form-state';
 import { loadDraftState, saveDraftState } from '@/lib/draft/storage';
-import type { FormState, P3State } from '@/types/domain';
+import type { FormState, SoilInputs } from '@/types/domain';
 
 function selectedValues(event: ChangeEvent<HTMLSelectElement>) {
   return Array.from(event.target.selectedOptions).map((option) => option.value);
@@ -24,6 +24,93 @@ export function InspectionForm() {
     setFormState((current) => updater(current));
   }
 
+  function updateTopBlock<K extends keyof FormState['topBlock']>(key: K, value: FormState['topBlock'][K]) {
+    updateState((current) => ({ ...current, topBlock: { ...current.topBlock, [key]: value } }));
+  }
+
+  function updateArchive<K extends keyof FormState['archive']>(key: K, value: FormState['archive'][K]) {
+    updateState((current) => ({ ...current, archive: { ...current.archive, [key]: value } }));
+  }
+
+  function updateExcavation<K extends keyof FormState['reportBody']['excavation']>(
+    key: K,
+    value: FormState['reportBody']['excavation'][K]
+  ) {
+    updateState((current) => ({
+      ...current,
+      reportBody: {
+        ...current.reportBody,
+        excavation: { ...current.reportBody.excavation, [key]: value }
+      }
+    }));
+  }
+
+  function updateSoil<K extends keyof FormState['reportBody']['soil']>(key: K, value: FormState['reportBody']['soil'][K]) {
+    updateState((current) => ({
+      ...current,
+      reportBody: {
+        ...current.reportBody,
+        soil: { ...current.reportBody.soil, [key]: value }
+      }
+    }));
+  }
+
+  function updateRecommendations<K extends keyof FormState['reportBody']['recommendations']>(
+    key: K,
+    value: FormState['reportBody']['recommendations'][K]
+  ) {
+    updateState((current) => ({
+      ...current,
+      reportBody: {
+        ...current.reportBody,
+        recommendations: { ...current.reportBody.recommendations, [key]: value }
+      }
+    }));
+  }
+
+  function updateSulphate<K extends keyof FormState['reportBody']['sulphate']>(
+    key: K,
+    value: FormState['reportBody']['sulphate'][K]
+  ) {
+    updateState((current) => ({
+      ...current,
+      reportBody: {
+        ...current.reportBody,
+        sulphate: { ...current.reportBody.sulphate, [key]: value }
+      }
+    }));
+  }
+
+  function updateWinterParagraph(includeParagraph: boolean) {
+    updateState((current) => ({
+      ...current,
+      reportBody: {
+        ...current.reportBody,
+        winterConstruction: { includeParagraph }
+      }
+    }));
+  }
+
+  function updateSignoff<K extends keyof FormState['signoff']>(key: K, value: FormState['signoff'][K]) {
+    updateState((current) => ({ ...current, signoff: { ...current.signoff, [key]: value } }));
+  }
+
+  function updateCutDepth(
+    key: keyof FormState['reportBody']['excavation']['houseFootingCutDepthsM'],
+    value: number | undefined
+  ) {
+    updateState((current) => ({
+      ...current,
+      reportBody: {
+        ...current.reportBody,
+        excavation: {
+          ...current.reportBody.excavation,
+          houseFootingCutDepthsM: { ...current.reportBody.excavation.houseFootingCutDepthsM, [key]: value }
+        }
+      }
+    }));
+  }
+
   function submitDraft() {
     saveDraftState(formState);
     router.push('/preview');
@@ -38,8 +125,9 @@ export function InspectionForm() {
     <>
       <section className="panel">
         <p className="note">
-          Assumption in this prototype: P4 footing basis is an explicit operator choice for now because the
-          seed pack marks the standard-versus-modified thresholds as still open.
+          The normalized V1 form now groups visible top-block metadata, hidden archive metadata, report body
+          inputs, and signoff inputs separately. Corner cut depths are the primary excavation input so later
+          prompts can derive min/max and walkout wording from one source.
         </p>
         <div className="button-row">
           <button type="button" onClick={submitDraft}>
@@ -55,140 +143,107 @@ export function InspectionForm() {
       </section>
 
       <section className="section-card">
-        <h2>Metadata / Top Block</h2>
+        <h2>Visible Letter Metadata</h2>
         <div className="field-grid">
-          <Field
-            label="Letter date"
-            type="date"
-            value={formState.meta.letterDate}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, letterDate: value } }))}
-          />
+          <Field label="Letter date" type="date" value={formState.topBlock.letterDate} onChange={(value) => updateTopBlock('letterDate', value)} />
           <Field
             label="Inspection date"
             type="date"
-            value={formState.inspectionDate}
-            onChange={(value) => updateState((current) => ({ ...current, inspectionDate: value }))}
+            value={formState.reportBody.excavation.inspectionDate}
+            onChange={(value) => updateExcavation('inspectionDate', value)}
           />
+          <Field label="File number" value={formState.topBlock.fileNumber} onChange={(value) => updateTopBlock('fileNumber', value)} />
+          <Field label="Client name" value={formState.topBlock.clientName} onChange={(value) => updateTopBlock('clientName', value)} />
+          <Field label="Street address" value={formState.topBlock.streetAddress} onChange={(value) => updateTopBlock('streetAddress', value)} />
+          <Field label="Heading suffix" value={formState.topBlock.headingSuffix ?? ''} onChange={(value) => updateTopBlock('headingSuffix', value)} />
+          <Field label="Municipality" value={formState.topBlock.municipality} onChange={(value) => updateTopBlock('municipality', value)} />
           <Field
-            label="File number"
-            value={formState.meta.fileNumber}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, fileNumber: value } }))}
-          />
-          <Field
-            label="Hidden H number"
-            value={formState.meta.hNumber}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, hNumber: value } }))}
-          />
-          <Field
-            label="Client name"
-            value={formState.meta.clientName}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, clientName: value } }))}
-          />
-          <Field
-            label="Street address"
-            value={formState.meta.streetAddress}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, streetAddress: value } }))}
+            label="Subdivision"
+            value={formState.topBlock.subdivision.value ?? ''}
+            onChange={(value) => updateTopBlock('subdivision', { ...formState.topBlock.subdivision, value })}
           />
           <TextAreaField
             className="full"
             label="Client mailing address"
-            value={formState.meta.clientMailingAddress.join('\n')}
-            onChange={(value) =>
-              updateState((current) => ({
-                ...current,
-                meta: { ...current.meta, clientMailingAddress: value.split('\n').filter(Boolean) }
-              }))
-            }
-          />
-          <Field
-            label="Heading suffix"
-            value={formState.meta.headingSuffix ?? ''}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, headingSuffix: value } }))}
-          />
-          <Field
-            label="Municipality"
-            value={formState.meta.municipality}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, municipality: value } }))}
-          />
-          <Field
-            label="Subdivision"
-            value={formState.meta.subdivision ?? ''}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, subdivision: value } }))}
+            value={formState.topBlock.clientMailingAddress.join('\n')}
+            onChange={(value) => updateTopBlock('clientMailingAddress', value.split('\n').filter(Boolean))}
           />
           <CheckboxField
             label="Include legal description"
-            checked={formState.meta.includeLegalDescription}
-            onChange={(checked) =>
-              updateState((current) => ({ ...current, meta: { ...current.meta, includeLegalDescription: checked } }))
-            }
+            checked={formState.topBlock.legalDescription.include}
+            onChange={(checked) => updateTopBlock('legalDescription', { ...formState.topBlock.legalDescription, include: checked })}
           />
           <CheckboxField
             label="Include subdivision"
-            checked={Boolean(formState.meta.includeSubdivision)}
-            onChange={(checked) =>
-              updateState((current) => ({ ...current, meta: { ...current.meta, includeSubdivision: checked } }))
-            }
+            checked={formState.topBlock.subdivision.include}
+            onChange={(checked) => updateTopBlock('subdivision', { ...formState.topBlock.subdivision, include: checked })}
           />
           <Field
             label="Lot"
-            value={formState.meta.lot ?? ''}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, lot: value } }))}
+            value={formState.topBlock.legalDescription.lot ?? ''}
+            onChange={(value) => updateTopBlock('legalDescription', { ...formState.topBlock.legalDescription, lot: value })}
           />
           <Field
             label="Block"
-            value={formState.meta.block ?? ''}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, block: value } }))}
+            value={formState.topBlock.legalDescription.block ?? ''}
+            onChange={(value) => updateTopBlock('legalDescription', { ...formState.topBlock.legalDescription, block: value })}
           />
           <Field
             label="Plan"
-            value={formState.meta.plan ?? ''}
-            onChange={(value) => updateState((current) => ({ ...current, meta: { ...current.meta, plan: value } }))}
+            value={formState.topBlock.legalDescription.plan ?? ''}
+            onChange={(value) => updateTopBlock('legalDescription', { ...formState.topBlock.legalDescription, plan: value })}
           />
           <CheckboxField
             label="Include client job number"
-            checked={Boolean(formState.meta.includeClientJobNumber)}
-            onChange={(checked) =>
-              updateState((current) => ({ ...current, meta: { ...current.meta, includeClientJobNumber: checked } }))
-            }
+            checked={formState.topBlock.clientJobNumber.include}
+            onChange={(checked) => updateTopBlock('clientJobNumber', { ...formState.topBlock.clientJobNumber, include: checked })}
           />
           <Field
             label="Client job number"
-            value={formState.meta.clientJobNumber ?? ''}
-            onChange={(value) =>
-              updateState((current) => ({ ...current, meta: { ...current.meta, clientJobNumber: value } }))
-            }
+            value={formState.topBlock.clientJobNumber.value ?? ''}
+            onChange={(value) => updateTopBlock('clientJobNumber', { ...formState.topBlock.clientJobNumber, value })}
           />
         </div>
       </section>
 
       <section className="section-card">
-        <h2>P2 Excavation Conditions</h2>
+        <h2>Hidden Archive Metadata</h2>
+        <div className="field-grid">
+          <Field label="Hidden H number" value={formState.archive.hNumber} onChange={(value) => updateArchive('hNumber', value)} />
+        </div>
+      </section>
+
+      <section className="section-card">
+        <h2>Excavation Inputs</h2>
         <div className="field-grid">
           <Field
-            label="Minimum cut (m)"
+            label="Front left cut (m)"
             type="number"
-            value={formState.p2.minCutM?.toString() ?? ''}
-            onChange={(value) =>
-              updateState((current) => ({ ...current, p2: { ...current.p2, minCutM: value ? Number(value) : undefined } }))
-            }
+            value={formState.reportBody.excavation.houseFootingCutDepthsM.frontLeftM?.toString() ?? ''}
+            onChange={(value) => updateCutDepth('frontLeftM', value ? Number(value) : undefined)}
           />
           <Field
-            label="Maximum cut (m)"
+            label="Front right cut (m)"
             type="number"
-            value={formState.p2.maxCutM?.toString() ?? ''}
-            onChange={(value) =>
-              updateState((current) => ({ ...current, p2: { ...current.p2, maxCutM: value ? Number(value) : undefined } }))
-            }
+            value={formState.reportBody.excavation.houseFootingCutDepthsM.frontRightM?.toString() ?? ''}
+            onChange={(value) => updateCutDepth('frontRightM', value ? Number(value) : undefined)}
+          />
+          <Field
+            label="Rear left cut (m)"
+            type="number"
+            value={formState.reportBody.excavation.houseFootingCutDepthsM.rearLeftM?.toString() ?? ''}
+            onChange={(value) => updateCutDepth('rearLeftM', value ? Number(value) : undefined)}
+          />
+          <Field
+            label="Rear right cut (m)"
+            type="number"
+            value={formState.reportBody.excavation.houseFootingCutDepthsM.rearRightM?.toString() ?? ''}
+            onChange={(value) => updateCutDepth('rearRightM', value ? Number(value) : undefined)}
           />
           <SelectField
             label="Garage mode"
-            value={formState.p2.garageMode}
-            onChange={(value) =>
-              updateState((current) => ({
-                ...current,
-                p2: { ...current.p2, garageMode: value as FormState['p2']['garageMode'] }
-              }))
-            }
+            value={formState.reportBody.excavation.garageMode}
+            onChange={(value) => updateExcavation('garageMode', value as FormState['reportBody']['excavation']['garageMode'])}
             options={[
               ['none', 'No garage'],
               ['same_elevation', 'Garage at same elevation'],
@@ -198,34 +253,24 @@ export function InspectionForm() {
           <Field
             label="Garage offset above house (m)"
             type="number"
-            value={formState.p2.garageOffsetAboveHouseM?.toString() ?? ''}
-            onChange={(value) =>
-              updateState((current) => ({
-                ...current,
-                p2: { ...current.p2, garageOffsetAboveHouseM: value ? Number(value) : undefined }
-              }))
-            }
+            value={formState.reportBody.excavation.garageOffsetAboveHouseM?.toString() ?? ''}
+            onChange={(value) => updateExcavation('garageOffsetAboveHouseM', value ? Number(value) : undefined)}
           />
           <CheckboxField
             label="Rear walkout basement"
-            checked={Boolean(formState.p2.walkoutBasement)}
-            onChange={(checked) => updateState((current) => ({ ...current, p2: { ...current.p2, walkoutBasement: checked } }))}
+            checked={Boolean(formState.reportBody.excavation.walkoutBasement)}
+            onChange={(checked) => updateExcavation('walkoutBasement', checked)}
           />
         </div>
       </section>
 
       <section className="section-card">
-        <h2>P3 Soil Conditions</h2>
+        <h2>Soil Inputs</h2>
         <div className="field-grid">
           <SelectField
             label="Layering mode"
-            value={formState.p3.soilLayeringMode}
-            onChange={(value) =>
-              updateState((current) => ({
-                ...current,
-                p3: { ...current.p3, soilLayeringMode: value as P3State['soilLayeringMode'] }
-              }))
-            }
+            value={formState.reportBody.soil.soilLayeringMode}
+            onChange={(value) => updateSoil('soilLayeringMode', value as SoilInputs['soilLayeringMode'])}
             options={[
               ['single_layer', 'Single layer'],
               ['engineered_fill_over_native', 'Engineered fill over native']
@@ -233,13 +278,8 @@ export function InspectionForm() {
           />
           <SelectField
             label="Soil origin"
-            value={formState.p3.primarySoilOrigin}
-            onChange={(value) =>
-              updateState((current) => ({
-                ...current,
-                p3: { ...current.p3, primarySoilOrigin: value as P3State['primarySoilOrigin'] }
-              }))
-            }
+            value={formState.reportBody.soil.primarySoilOrigin}
+            onChange={(value) => updateSoil('primarySoilOrigin', value as SoilInputs['primarySoilOrigin'])}
             options={[
               ['native', 'Native'],
               ['engineered_fill_jrp', 'Engineered fill by JRP'],
@@ -250,13 +290,8 @@ export function InspectionForm() {
           />
           <SelectField
             label="Material family"
-            value={formState.p3.primaryMaterialFamily}
-            onChange={(value) =>
-              updateState((current) => ({
-                ...current,
-                p3: { ...current.p3, primaryMaterialFamily: value as P3State['primaryMaterialFamily'] }
-              }))
-            }
+            value={formState.reportBody.soil.primaryMaterialFamily}
+            onChange={(value) => updateSoil('primaryMaterialFamily', value as SoilInputs['primaryMaterialFamily'])}
             options={[
               ['clay', 'Clay'],
               ['clay_till', 'Clay till'],
@@ -268,10 +303,8 @@ export function InspectionForm() {
           />
           <SelectField
             label="Moisture"
-            value={formState.p3.moisture1}
-            onChange={(value) =>
-              updateState((current) => ({ ...current, p3: { ...current.p3, moisture1: value as P3State['moisture1'] } }))
-            }
+            value={formState.reportBody.soil.moisture1}
+            onChange={(value) => updateSoil('moisture1', value as SoilInputs['moisture1'])}
             options={[
               ['damp', 'Damp'],
               ['moist', 'Moist'],
@@ -281,10 +314,8 @@ export function InspectionForm() {
           />
           <SelectField
             label="Colour"
-            value={formState.p3.colour}
-            onChange={(value) =>
-              updateState((current) => ({ ...current, p3: { ...current.p3, colour: value as P3State['colour'] } }))
-            }
+            value={formState.reportBody.soil.colour}
+            onChange={(value) => updateSoil('colour', value as SoilInputs['colour'])}
             options={[
               ['brown', 'Brown'],
               ['grey', 'Grey'],
@@ -297,10 +328,8 @@ export function InspectionForm() {
           />
           <SelectField
             label="Plasticity"
-            value={formState.p3.plasticity1}
-            onChange={(value) =>
-              updateState((current) => ({ ...current, p3: { ...current.p3, plasticity1: value as P3State['plasticity1'] } }))
-            }
+            value={formState.reportBody.soil.plasticity1}
+            onChange={(value) => updateSoil('plasticity1', value as SoilInputs['plasticity1'])}
             options={[
               ['low', 'Low'],
               ['medium', 'Medium'],
@@ -309,13 +338,8 @@ export function InspectionForm() {
           />
           <SelectField
             label="Consistency / density"
-            value={formState.p3.consistencyOrDensity}
-            onChange={(value) =>
-              updateState((current) => ({
-                ...current,
-                p3: { ...current.p3, consistencyOrDensity: value as P3State['consistencyOrDensity'] }
-              }))
-            }
+            value={formState.reportBody.soil.consistencyOrDensity}
+            onChange={(value) => updateSoil('consistencyOrDensity', value as SoilInputs['consistencyOrDensity'])}
             options={[
               ['soft', 'Soft'],
               ['firm', 'Firm'],
@@ -334,13 +358,8 @@ export function InspectionForm() {
             <select
               id="trace-features"
               multiple
-              value={formState.p3.traceFeatures ?? []}
-              onChange={(event) =>
-                updateState((current) => ({
-                  ...current,
-                  p3: { ...current.p3, traceFeatures: selectedValues(event) as P3State['traceFeatures'] }
-                }))
-              }
+              value={formState.reportBody.soil.traceFeatures ?? []}
+              onChange={(event) => updateSoil('traceFeatures', selectedValues(event) as SoilInputs['traceFeatures'])}
             >
               <option value="oxides">Oxides</option>
               <option value="white_precipitates">White precipitates</option>
@@ -352,24 +371,19 @@ export function InspectionForm() {
           </div>
           <CheckboxField
             label="High plastic warning"
-            checked={Boolean(formState.p3.highPlasticWarning)}
-            onChange={(checked) => updateState((current) => ({ ...current, p3: { ...current.p3, highPlasticWarning: checked } }))}
+            checked={Boolean(formState.reportBody.soil.highPlasticWarning)}
+            onChange={(checked) => updateSoil('highPlasticWarning', checked)}
           />
         </div>
       </section>
 
       <section className="section-card">
-        <h2>P4 to P7 Controls</h2>
+        <h2>Recommendation / Sulphate Inputs</h2>
         <div className="field-grid">
           <SelectField
             label="P4 footing basis"
-            value={formState.p4.footingBasis}
-            onChange={(value) =>
-              updateState((current) => ({
-                ...current,
-                p4: { ...current.p4, footingBasis: value as FormState['p4']['footingBasis'] }
-              }))
-            }
+            value={formState.reportBody.recommendations.footingBasis}
+            onChange={(value) => updateRecommendations('footingBasis', value as FormState['reportBody']['recommendations']['footingBasis'])}
             options={[
               ['standard', 'Standard'],
               ['modified', 'Modified']
@@ -377,12 +391,9 @@ export function InspectionForm() {
           />
           <SelectField
             label="Spread footing family"
-            value={formState.p4.spreadFootingMode}
+            value={formState.reportBody.recommendations.spreadFootingFamily}
             onChange={(value) =>
-              updateState((current) => ({
-                ...current,
-                p4: { ...current.p4, spreadFootingMode: value as FormState['p4']['spreadFootingMode'] }
-              }))
+              updateRecommendations('spreadFootingFamily', value as FormState['reportBody']['recommendations']['spreadFootingFamily'])
             }
             options={[
               ['default_140_kpa', '140 kPa working default'],
@@ -392,34 +403,18 @@ export function InspectionForm() {
           />
           <CheckboxField
             label="Garage slab organics advisory"
-            checked={Boolean(formState.p5?.garageSlabOrganics)}
-            onChange={(checked) =>
-              updateState((current) => ({ ...current, p5: { ...current.p5, garageSlabOrganics: checked } }))
-            }
+            checked={Boolean(formState.reportBody.recommendations.garageSlabOrganics)}
+            onChange={(checked) => updateRecommendations('garageSlabOrganics', checked)}
           />
           <CheckboxField
             label="Include sulphate paragraph"
-            checked={Boolean(formState.p6?.includeSulphateParagraph)}
-            onChange={(checked) =>
-              updateState((current) => ({
-                ...current,
-                p6: { ...current.p6, includeSulphateParagraph: checked, sulphateClass: current.p6?.sulphateClass ?? 'negligible' }
-              }))
-            }
+            checked={formState.reportBody.sulphate.includeParagraph}
+            onChange={(checked) => updateSulphate('includeParagraph', checked)}
           />
           <SelectField
             label="Sulphate class"
-            value={formState.p6?.sulphateClass ?? 'negligible'}
-            onChange={(value) =>
-              updateState((current) => ({
-                ...current,
-                p6: {
-                  ...current.p6,
-                  includeSulphateParagraph: true,
-                  sulphateClass: value as NonNullable<FormState['p6']>['sulphateClass']
-                }
-              }))
-            }
+            value={formState.reportBody.sulphate.sulphateClass ?? 'negligible'}
+            onChange={(value) => updateSulphate('sulphateClass', value as FormState['reportBody']['sulphate']['sulphateClass'])}
             options={[
               ['negligible', 'Negligible'],
               ['moderate', 'Moderate'],
@@ -427,24 +422,19 @@ export function InspectionForm() {
               ['very_severe', 'Very severe']
             ]}
           />
+          <CheckboxField
+            label="Include winter construction paragraph"
+            checked={formState.reportBody.winterConstruction.includeParagraph}
+            onChange={updateWinterParagraph}
+          />
         </div>
       </section>
 
       <section className="section-card">
-        <h2>Signoff</h2>
+        <h2>Signoff Inputs</h2>
         <div className="field-grid">
-          <Field
-            label="Prepared by"
-            value={formState.signoff.preparedBy ?? ''}
-            onChange={(value) => updateState((current) => ({ ...current, signoff: { ...current.signoff, preparedBy: value } }))}
-          />
-          <Field
-            label="Signing engineer"
-            value={formState.signoff.signingEngineer}
-            onChange={(value) =>
-              updateState((current) => ({ ...current, signoff: { ...current.signoff, signingEngineer: value } }))
-            }
-          />
+          <Field label="Prepared by" value={formState.signoff.preparedBy ?? ''} onChange={(value) => updateSignoff('preparedBy', value)} />
+          <Field label="Signing engineer" value={formState.signoff.signingEngineer} onChange={(value) => updateSignoff('signingEngineer', value)} />
         </div>
       </section>
     </>

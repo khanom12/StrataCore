@@ -1,20 +1,23 @@
-import type { ReviewFlag, ReviewSeverity } from '@/types/domain';
+import type { ClauseRef, ReviewFlag, ReviewSeverity, RuleRef, SectionId } from '@/types/domain';
 
 interface ReviewFlagInput {
-  code: string;
+  id: string;
+  title: string;
   message: string;
   severity?: ReviewSeverity;
-  sourceRuleIds?: string[];
-  sourceClauseIds?: string[];
+  relatedSectionId?: SectionId;
+  clauseRefs?: ClauseRef[];
+  ruleRefs?: RuleRef[];
 }
 
 export function createReviewFlag(input: ReviewFlagInput): ReviewFlag {
   return {
-    code: input.code,
-    severity: input.severity ?? 'review',
+    id: input.id,
+    title: input.title,
     message: input.message,
-    sourceRuleIds: input.sourceRuleIds,
-    sourceClauseIds: input.sourceClauseIds
+    severity: input.severity ?? 'warning',
+    relatedSectionId: input.relatedSectionId,
+    clauseRefs: input.clauseRefs ?? [],
+    ruleRefs: input.ruleRefs ?? []
   };
 }
-

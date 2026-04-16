@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
+import type { DocxExportStub } from '@/lib/export/build-docx';
 import { defaultFormState } from '@/lib/draft/default-form-state';
 import { loadDraftState } from '@/lib/draft/storage';
 import { generateLetter } from '@/lib/generation/generate-letter';
-import type { DocxExportStub } from '@/lib/export/build-docx';
 import type { FormState } from '@/types/domain';
 
 export function LetterPreview() {
@@ -64,12 +64,14 @@ export function LetterPreview() {
           <h2>Review Panel</h2>
           {result.reviewFlags.length === 0 ? <p>No review flags were raised for this draft.</p> : null}
           {result.reviewFlags.map((flag) => (
-            <div key={flag.code} className="flag">
-              <strong>{flag.code}</strong>
+            <div key={flag.id} className="flag">
+              <strong>
+                {flag.title} ({flag.severity})
+              </strong>
               <p>{flag.message}</p>
               <p className="mono">
-                Rules: {(flag.sourceRuleIds ?? []).join(', ') || 'n/a'} | Clauses:{' '}
-                {(flag.sourceClauseIds ?? []).join(', ') || 'n/a'}
+                Section: {flag.relatedSectionId ?? 'n/a'} | Rules: {flag.ruleRefs.map((ref) => ref.id).join(', ') || 'n/a'} | Clauses:{' '}
+                {flag.clauseRefs.map((ref) => ref.id).join(', ') || 'n/a'}
               </p>
             </div>
           ))}
@@ -78,17 +80,22 @@ export function LetterPreview() {
 
       <section className="preview-card">
         <h2>Letter Draft</h2>
-        {result.paragraphs.map((paragraph) => (
+        {result.orderedParagraphs.map((paragraph) => (
           <article key={paragraph.id} className="section-card">
             <p className="muted">
-              {paragraph.section} {paragraph.needsReview ? '• review-sensitive' : ''}
+              {paragraph.sectionId} {paragraph.reviewSensitive ? '• review-sensitive' : ''}
             </p>
-            <h3>{paragraph.title}</h3>
+            <h3>{paragraph.label ?? paragraph.sectionId}</h3>
             <div className="letter-block">{paragraph.text}</div>
             <div className="trace-list">
-              {paragraph.clauseIds.map((clauseId) => (
-                <span key={`${paragraph.id}-${clauseId}`} className="trace-pill">
-                  {clauseId}
+              {paragraph.clauseRefs.map((clauseRef) => (
+                <span key={`${paragraph.id}-${clauseRef.id}`} className="trace-pill">
+                  {clauseRef.id}
+                </span>
+              ))}
+              {paragraph.ruleRefs.map((ruleRef) => (
+                <span key={`${paragraph.id}-${ruleRef.id}`} className="trace-pill">
+                  {ruleRef.id}
                 </span>
               ))}
             </div>
@@ -98,9 +105,9 @@ export function LetterPreview() {
 
       <section className="preview-card">
         <h2>Clause / Rule Trace</h2>
-        <p className="mono">Sections: {result.visibleSections.join(', ')}</p>
-        <p className="mono">Clauses: {result.clauseIds.join(', ')}</p>
-        <p className="mono">Rules: {result.ruleIds.join(', ')}</p>
+        <p className="mono">Sections: {result.visibleSectionIds.join(', ')}</p>
+        <p className="mono">Clauses: {result.clauseRefsUsed.map((ref) => ref.id).join(', ')}</p>
+        <p className="mono">Rules: {result.ruleRefsUsed.map((ref) => ref.id).join(', ')}</p>
       </section>
     </>
   );

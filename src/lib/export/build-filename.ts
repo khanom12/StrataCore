@@ -9,17 +9,16 @@ function slugify(value: string): string {
 }
 
 export function buildFilename(formState: FormState): string {
-  const fileNumber = slugify(formState.meta.fileNumber);
-  const address = slugify(formState.meta.streetAddress);
-  const hNumber = slugify(formState.meta.hNumber);
+  const fileNumber = slugify(formState.topBlock.fileNumber);
+  const address = slugify(formState.topBlock.streetAddress);
+  const hNumber = slugify(formState.archive.hNumber);
 
   return `${hNumber}_${fileNumber}_${address}_foundation-soil-inspection.docx`;
 }
 
 export function buildArchivePath(formState: FormState, filename: string): string {
-  const year = new Date(formState.meta.letterDate).getFullYear() || new Date().getFullYear();
-  const clientFolder = formState.meta.clientName.trim() || 'client-folder';
+  const year = new Date(formState.topBlock.letterDate).getFullYear() || new Date().getFullYear();
+  const clientFolder = formState.topBlock.clientName.trim() || 'client-folder';
 
   return `H:/${year}/Housing/${clientFolder}/${filename}`;
 }
-

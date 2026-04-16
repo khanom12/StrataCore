@@ -12,7 +12,6 @@ export function buildDocx(_formState: FormState): DocxExportStub {
     status: 'not_implemented',
     message: 'DOCX export is intentionally stubbed in this first prototype.',
     nextStep: 'Connect the pure GenerationResult output to a Word template merge once the paragraph set is approved.',
-    requestedFileNumber: _formState.meta.fileNumber
+    requestedFileNumber: _formState.topBlock.fileNumber
   };
 }
-
