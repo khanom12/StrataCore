@@ -5,11 +5,10 @@ export default function FormPage() {
     <main className="shell">
       <div className="workflow-header">
         <p className="muted">Workflow step 1</p>
-        <h1>Form Input</h1>
-        <p>Capture the structured metadata and footing-inspection inputs used by the first prototype.</p>
+        <h1>Build the draft</h1>
+        <p>Enter the project details, site observations, and recommendations that shape the first-pass letter.</p>
       </div>
       <InspectionForm />
     </main>
   );
 }
-

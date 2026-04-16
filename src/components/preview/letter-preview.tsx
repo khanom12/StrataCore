@@ -203,13 +203,38 @@ function renderPage(page: ComposedLetterPage) {
   return page.kind === 'first_page' ? <FirstPageLayout key={page.id} page={page} /> : <ContinuationPageLayout key={page.id} page={page} />;
 }
 
+const CLIENT_PRESET_LABELS: Record<string, string> = {
+  'victory-homes-2026': 'Victory Homes sample project',
+  'generic-happy-path': 'Generic sample project'
+};
+
+function getDraftSourceLabel(formState: FormState) {
+  const matchedPreset = identifyReferenceCasePreset(formState);
+
+  if (!matchedPreset) {
+    return 'Custom local draft';
+  }
+
+  return CLIENT_PRESET_LABELS[matchedPreset.id] ?? matchedPreset.label;
+}
+
 export function LetterPreview() {
   const [draftState, setDraftState] = useState<FormState>(defaultFormState);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const result = useMemo(() => generateLetter(draftState), [draftState]);
   const documentModel = useMemo(() => composeLetterDocument(draftState, result), [draftState, result]);
-  const matchedPreset = useMemo(() => identifyReferenceCasePreset(draftState), [draftState]);
+  const draftSourceLabel = useMemo(() => getDraftSourceLabel(draftState), [draftState]);
+  const readinessSummary =
+    documentModel.readiness.status === 'ready'
+      ? 'Ready for DOCX export'
+      : documentModel.readiness.status === 'warning'
+        ? 'DOCX export is available with supporting notes'
+        : 'Review items remain before issue';
+  const reviewSummary =
+    documentModel.reviewFlags.length === 0
+      ? 'No items are currently flagged for analyst review.'
+      : `${documentModel.reviewFlags.length} item${documentModel.reviewFlags.length === 1 ? ' requires' : ' require'} analyst review before issue.`;
 
   useEffect(() => {
     setDraftState(loadDraftState());
@@ -252,35 +277,25 @@ export function LetterPreview() {
   return (
     <>
       <section className="preview-card">
-        <h2>Current Draft</h2>
-        <p>
-          <strong>Preset status</strong>
-        </p>
-        <p>{matchedPreset ? `${matchedPreset.label} (${matchedPreset.presetKind === 'reference' ? 'reference preset' : 'smoke preset'})` : 'Live edited draft'}</p>
-        <p>
-          <strong>Export readiness</strong>
-        </p>
-        <p className="mono">{documentModel.readiness.label}</p>
-        <p>
-          <strong>Filename</strong>
-        </p>
-        <p className="mono">{documentModel.filename}</p>
-        <p>
-          <strong>Archive path</strong>
-        </p>
-        <p className="mono">{documentModel.archivePath}</p>
-        <p>
-          <strong>Business review flags</strong>
-        </p>
-        <p>{documentModel.reviewFlags.length === 0 ? 'No review flags are currently raised.' : `${documentModel.reviewFlags.length} review flag(s) remain visible for analyst review.`}</p>
-        {documentModel.exportWarnings.length > 0 ? (
-          <div className="note">
-            <strong>Fidelity / asset warnings</strong>
-            {documentModel.exportWarnings.map((warning) => (
-              <p key={warning}>{warning}</p>
-            ))}
+        <div className="section-heading">
+          <p className="muted">Preview summary</p>
+          <h2>Draft overview</h2>
+          <p className="section-intro">Review the current draft status, then inspect the assembled letter below.</p>
+        </div>
+        <div className="summary-grid">
+          <div className="summary-item">
+            <span>Draft source</span>
+            <strong>{draftSourceLabel}</strong>
           </div>
-        ) : null}
+          <div className="summary-item">
+            <span>Export readiness</span>
+            <strong>{readinessSummary}</strong>
+          </div>
+          <div className="summary-item">
+            <span>Review status</span>
+            <strong>{reviewSummary}</strong>
+          </div>
+        </div>
         <div className="button-row">
           <Link className="button secondary" href="/form">
             Back to form
@@ -297,30 +312,64 @@ export function LetterPreview() {
       </section>
 
       <section className="preview-card">
-        <h2>Formatted Draft View</h2>
+        <div className="section-heading">
+          <p className="muted">Review panel</p>
+          <h2>Items to review</h2>
+          <p className="section-intro">The draft continues to generate even when wording still needs analyst review.</p>
+        </div>
+        {documentModel.reviewFlags.length === 0 ? (
+          <div className="note">
+            <strong>No review items are currently flagged.</strong>
+          </div>
+        ) : (
+          documentModel.reviewFlags.map((flag) => (
+            <div key={flag.id} className="flag">
+              <strong>
+                {flag.title} ({flag.severity})
+              </strong>
+              <p>{flag.message}</p>
+              <p className="mono">
+                Section: {flag.relatedSectionId ?? 'n/a'} | Rules: {flag.ruleRefs.map((ref) => ref.id).join(', ') || 'n/a'} | Clauses:{' '}
+                {flag.clauseRefs.map((ref) => ref.id).join(', ') || 'n/a'}
+              </p>
+            </div>
+          ))
+        )}
+      </section>
+
+      <section className="preview-card">
+        <div className="section-heading">
+          <p className="muted">Letter output</p>
+          <h2>Letter preview</h2>
+        </div>
         {documentModel.pages.map((page) => renderPage(page))}
       </section>
 
-      <details className="preview-card">
+      <details className="preview-card internal-details">
         <summary>
-          <strong>Analyst / Debug View</strong>
+          <strong>Internal details</strong>
         </summary>
+        <div className="summary-grid">
+          <div className="summary-item">
+            <span>Filename</span>
+            <strong className="mono">{documentModel.filename}</strong>
+          </div>
+          <div className="summary-item">
+            <span>Archive path</span>
+            <strong className="mono">{documentModel.archivePath}</strong>
+          </div>
+        </div>
+        {documentModel.exportWarnings.length > 0 ? (
+          <div className="note">
+            <strong>DOCX notes</strong>
+            {documentModel.exportWarnings.map((warning) => (
+              <p key={warning}>{warning}</p>
+            ))}
+          </div>
+        ) : null}
         <p className="mono">Sections: {documentModel.visibleSections.join(', ')}</p>
         <p className="mono">Clauses: {documentModel.clauseRefsUsed.map((ref) => ref.id).join(', ')}</p>
         <p className="mono">Rules: {documentModel.ruleRefsUsed.map((ref) => ref.id).join(', ')}</p>
-        {documentModel.reviewFlags.length === 0 ? <p>No review flags were raised for this draft.</p> : null}
-        {documentModel.reviewFlags.map((flag) => (
-          <div key={flag.id} className="flag">
-            <strong>
-              {flag.title} ({flag.severity})
-            </strong>
-            <p>{flag.message}</p>
-            <p className="mono">
-              Section: {flag.relatedSectionId ?? 'n/a'} | Rules: {flag.ruleRefs.map((ref) => ref.id).join(', ') || 'n/a'} | Clauses:{' '}
-              {flag.clauseRefs.map((ref) => ref.id).join(', ') || 'n/a'}
-            </p>
-          </div>
-        ))}
       </details>
     </>
   );

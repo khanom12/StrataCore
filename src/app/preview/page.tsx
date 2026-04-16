@@ -5,8 +5,8 @@ export default function PreviewPage() {
     <main className="shell">
       <div className="workflow-header">
         <p className="muted">Workflow step 2</p>
-        <h1>Letter Preview</h1>
-        <p>Review the composed draft shell, analyst trace panel, and the real DOCX export output before issue.</p>
+        <h1>Review the draft</h1>
+        <p>Check the assembled letter, confirm any review items, and export the DOCX when the draft is ready.</p>
       </div>
       <LetterPreview />
     </main>
