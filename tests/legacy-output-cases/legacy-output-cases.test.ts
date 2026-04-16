@@ -50,7 +50,7 @@ describe('legacy output regression matrix', () => {
     ]);
 
     for (const fixture of legacyOutputCases) {
-      const sourcePath = resolve('/Users/omar/Projects/StrataCore', fixture.sourcePath);
+      const sourcePath = resolve(process.cwd(), fixture.sourcePath);
       expect(existsSync(sourcePath)).toBe(true);
       expect(fixture.status).not.toBe('pending-file');
     }
@@ -62,7 +62,7 @@ describe('legacy output regression matrix', () => {
     expect(summary).toHaveLength(legacyOutputCases.length);
     expect(summary.every((item) => ['supported', 'partial', 'unsupported', 'pending-file'].includes(item.status))).toBe(true);
     expect(summary.some((item) => item.slug === 'house-garage-with-walkout' && item.status === 'partial')).toBe(true);
-    expect(summary.some((item) => item.slug === 'already-poured-footing' && item.status === 'partial')).toBe(true);
+    expect(summary.some((item) => item.slug === 'already-poured-footing' && item.status === 'supported')).toBe(true);
   });
 
   it('supports the upgraded-drainage auger-hole family with a dedicated issue paragraph and conditional recommendation', () => {
@@ -118,7 +118,8 @@ describe('legacy output regression matrix', () => {
     expect(fixture?.status).toBe('partial');
     expect(result.visibleSections).toContain('P5');
     expect(p2).toContain('garage footing area');
-    expect(p2).toContain('Rear walkout basement conditions were selected');
+    expect(p2).toContain('frost wall');
+    expect(result.reviewFlags.some((flag) => flag.id === 'review-walkout-garage-ordering')).toBe(true);
   });
 
   it('keeps the clay-fill-over-below-soils family materially aligned with the historical wording', () => {
@@ -131,27 +132,34 @@ describe('legacy output regression matrix', () => {
     expect(p3).toContain('engineered fill program monitored and tested by our firm');
   });
 
-  it('keeps the already-placed footing family marked partial while using as-placed wording', () => {
+  it('supports the already-placed footing family with as-placed wording, the 120 kPa option, and derived garage adequacy', () => {
     const fixture = getLegacyOutputCase('already-poured-footing');
     const result = generateLetter(fixture!.formState);
     const p2 = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P2')?.text ?? '';
     const p4 = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P4')?.text ?? '';
+    const p5 = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P5')?.text ?? '';
+    const topBlock = result.paragraphs.find((paragraph) => paragraph.sectionId === 'TOP_BLOCK')?.text ?? '';
 
-    expect(fixture?.status).toBe('partial');
+    expect(fixture?.status).toBe('supported');
     expect(p2).toContain('strip footing forms');
     expect(p4).toContain('as placed, was considered adequate');
+    expect(p4).toContain('2500 pounds per square foot');
+    expect(p5).toContain('as placed, was also considered adequate');
+    expect(topBlock).toContain('Job# CBR-6223');
   });
 
-  it('uses the real office shell text in composed historical-case documents and keeps archive metadata hidden from visible body text', () => {
+  it('uses the real office shell text in composed historical-case documents and shows the archive path only on the final footer', () => {
     const fixture = getLegacyOutputCase('water-in-auger-holes-upgraded-drainage');
     const result = generateLetter(fixture!.formState);
     const document = composeLetterDocument(fixture!.formState, result);
     const visibleText = flattenVisibleText(document);
 
-    expect(visibleText).toContain('J.R. Paine & Associates Ltd.\tPage 2 of 2');
+    expect(visibleText).toContain('J.R. Paine & Associates Ltd.');
     expect(visibleText).toContain('Foundation Soils Inspection\tFile No. 4460 - 1');
+    expect(visibleText).toContain('April 7, 2026');
     expect(visibleText).toContain('Reviewed by,');
-    expect(visibleText).not.toContain('LETTER - CONTINUED');
-    expect(visibleText).not.toContain('h38862');
+    expect(document.pages.at(-1)?.footerBlock.archivePathLine).toContain('h38862');
+    expect(visibleText).not.toContain('[Engineer stamp placeholder');
+    expect(visibleText).not.toContain('[Permit-to-practice');
   });
 });

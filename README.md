@@ -72,15 +72,27 @@ npm run dev
 ## Reference standard
 
 - The authoritative reference preset is `Victory Homes 2026`, pinned to the issued-example shell, filename/archive path, and signoff pattern.
-- Historical output letters in `/Users/omar/Projects/StrataCore/reference-letters/legacy` are part of the regression strategy. Add a matching manifest entry in `/Users/omar/Projects/StrataCore/src/lib/reference-cases/legacy-output-cases.ts` when a new legacy letter is added.
-- The lightweight operating note for those fixtures lives in `/Users/omar/Projects/StrataCore/docs/legacy-output-cases/README.md`.
+- Historical output letters in `reference-letters/legacy/` are part of the regression strategy. Add a matching manifest entry in `src/lib/reference-cases/legacy-output-cases.ts` when a new legacy letter is added.
+- The lightweight operating note for those fixtures lives in `docs/legacy-output-cases/README.md`.
+
+## Rules-based fixture workflow
+
+- The working ruleset, clause bank, and decision surfaces remain the source of truth for generation behavior.
+- Historical letters validate the system, expose wording gaps, and improve regression coverage.
+- Historical letters do not silently override the rule system. If a historical sample conflicts with the current rule surfaces, keep the case review-sensitive until the rule surfaces are updated explicitly.
+
+When adding a new historical reference:
+- Place the source document in `reference-letters/legacy/`.
+- Add or update the manifest and `formState` fixture in `src/lib/reference-cases/legacy-output-cases.ts`.
+- Classify the case honestly as `supported`, `partial`, `unsupported`, or `pending-file`.
+- Add or update focused semantic regression tests under `tests/legacy-output-cases/`, `tests/gold-cases/`, or the closest shell/export test file.
+- Add DOCX-level assertions when the case proves a shell/signoff/export behavior rather than a paragraph-only wording branch.
 
 ## Known limitations
 
 - The stable AUTO path is implemented first.
 - Review-sensitive branches remain visible through review flags instead of being silently decided in code.
 - DOCX export is code-generated and materially closer to the office shell, but final logo/stamp assets and template-perfect pagination are still out of scope.
-- Engineer stamp and permit-to-practice assets are still text placeholders until the real office image assets are added.
 - Historical cases marked `partial` in the legacy-output matrix still need tighter wording fidelity before they should be treated as fully office-equivalent.
 - Review-only edge families such as engineered fill by others / unknown, rare remediation packages, and spread-footing conflicts remain intentionally deferred for analyst review.
 - Correction/rewrite and frost follow-up whole-letter modes remain intentionally deferred.

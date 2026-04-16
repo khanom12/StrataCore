@@ -28,9 +28,7 @@ function flattenBodyText(blocks: LetterDocumentBodyBlock[]): string {
             block.salutationLine,
             block.organization,
             ...block.lines.flatMap((line) => [line.label, line.value]),
-            block.engineerMemberNumberLine,
-            block.stampPlaceholderLine,
-            block.permitToPracticeLine
+            ...(block.engineerMemberNumberLine ? [block.engineerMemberNumberLine] : [])
           ].join('\n');
         case 'spacer_block':
         case 'trace_block':
@@ -63,21 +61,28 @@ describe('composeLetterDocument', () => {
 
     expect(officeAddressBlock?.lines).toEqual(['2304 - 119 Avenue NE', 'Edmonton, Alberta', 'T6S 1B3']);
     expect(document.pages[1].headerBlock.role).toBe('continuation_subject');
-    expect(document.pages[1].headerBlock.subjectLine).toBe('Foundation Soils Inspection');
+    const dateFileBlock = document.pages[0].bodyBlocks.find(
+      (block): block is Extract<LetterDocumentBodyBlock, { kind: 'metadata_block' }> => block.kind === 'metadata_block' && block.role === 'date_file'
+    );
+
+    expect(document.pages[1].headerBlock.subjectLine).toBe('Foundation Soil Inspection');
     expect(document.pages[1].headerBlock.fileNumberLine).toBe('File No. 5478 - 1');
-    expect(document.pages[1].headerBlock.lines[0]).toContain('J.R. Paine & Associates Ltd.');
-    expect(document.pages[1].headerBlock.lines[0]).toContain('Page 2 of 2');
+    expect(document.pages[1].headerBlock.lines[0]).toBe('J.R. Paine & Associates Ltd.');
+    expect(document.pages[1].headerBlock.lines[1]).toBe('Foundation Soil Inspection\tFile No. 5478 - 1');
+    expect(dateFileBlock?.dateLine).toBe('February 4, 2026');
   });
 
-  it('keeps the hidden H number out of visible body blocks and visible footer content while preserving it in document metadata', () => {
+  it('keeps the raw H number out of body text while placing the archive path on the final visible footer', () => {
     const formState = cloneFormState(victoryHomes2026IssuedExample);
     const result = generateLetter(formState);
     const document = composeLetterDocument(formState, result);
     const bodyText = document.pages.map((page) => flattenBodyText(page.bodyBlocks)).join('\n');
-    const footerText = document.pages.map((page) => page.footerBlock.lines.join('\n')).join('\n');
+    const firstPageFooterText = document.pages[0]?.footerBlock.lines.join('\n') ?? '';
+    const lastPageFooter = document.pages.at(-1)?.footerBlock;
 
     expect(bodyText).not.toContain('h38566');
-    expect(footerText).not.toContain('h38566');
+    expect(firstPageFooterText).not.toContain('h38566');
+    expect(lastPageFooter?.archivePathLine).toContain('h38566vic.docx');
     expect(document.archivePath).toContain('h38566vic.docx');
   });
 
@@ -105,6 +110,7 @@ describe('composeLetterDocument', () => {
 
     expect(signoff?.lines.some((line) => line.label === 'Reviewed by,' && line.value === 'Scott MacFarlane, P.Eng.')).toBe(true);
     expect(signoff?.engineerMemberNumberLine).toBe('APEGA Member #: 89667');
+    expect(flattenBodyText(document.pages.at(-1)?.bodyBlocks ?? [])).not.toContain('placeholder');
     expect(document.pages[1].footerBlock.offices).toEqual([
       { city: 'EDMONTON', phone: '780-489-0700' },
       { city: 'GRANDE PRAIRIE', phone: '780-532-1515' },

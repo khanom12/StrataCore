@@ -40,10 +40,23 @@ describe('buildDocx', () => {
       const documentXml = execFileSync('unzip', ['-p', docxPath, 'word/document.xml'], {
         encoding: 'utf8'
       });
+      const header2Xml = execFileSync('unzip', ['-p', docxPath, 'word/header2.xml'], {
+        encoding: 'utf8'
+      });
+      const footer2Xml = execFileSync('unzip', ['-p', docxPath, 'word/footer2.xml'], {
+        encoding: 'utf8'
+      });
 
       expect(documentXml).toContain('J.R. Paine &amp; Associates Ltd.');
-      expect(documentXml).toContain('Foundation Soils Inspection');
+      expect(documentXml).toContain('Foundation Soil Inspection');
+      expect(documentXml).toContain('February 4, 2026');
       expect(documentXml).toContain('Reviewed by,');
+      expect(documentXml).toContain('APEGA Member #: 89667');
+      expect(documentXml).not.toContain('[Engineer stamp placeholder');
+      expect(documentXml).not.toContain('[Permit-to-practice');
+      expect(header2Xml).toContain('Foundation Soil Inspection');
+      expect(header2Xml).toContain('File No. 5478 - 1');
+      expect(footer2Xml).toContain('H:\\DATA 2026\\00 Housing 2026\\5478 - 1 VICTORY HOMES LTD.\\h38566vic.docx');
       expect(documentXml).not.toContain('LETTER - CONTINUED');
       expect(documentXml).not.toMatch(/\bCL_\d+\b/);
       expect(documentXml).not.toMatch(/\bDT_\d+\b/);

@@ -47,6 +47,7 @@ export interface FormInputVisibility {
     excavation: {
       showTrenchLocation: boolean;
       showWaterIssueDepth: boolean;
+      showWalkoutExtraRearRemovalM: boolean;
     };
     recommendation: {
       showDrainageUpgradeVariant: boolean;
@@ -151,6 +152,13 @@ export const DEPENDENCY_MATRIX: DependencyDefinition[] = [
     parentPath: 'reportBody.excavation.oversizedTrenchMode',
     childPaths: ['reportBody.excavation.trenchLocation'],
     description: 'Trench location is only relevant when an oversized trench remediation mode is active.'
+  },
+  {
+    id: 'walkout-extra-rear-removal',
+    category: 'reveal_hide_child_input',
+    parentPath: 'reportBody.excavation.walkoutBasement',
+    childPaths: ['reportBody.excavation.walkoutExtraRearRemovalM'],
+    description: 'Rear walkout extra-removal depth is only collected when the walkout wording family is active.'
   },
   {
     id: 'water-issue-depth',
@@ -309,7 +317,8 @@ export function getFormInputVisibility(formState: FormState): FormInputVisibilit
       showStandardHouseInputs,
       excavation: {
         showTrenchLocation: formState.reportBody.excavation.oversizedTrenchMode !== 'none',
-        showWaterIssueDepth: usesWaterDepth(formState.reportBody.excavation.waterIssueMode)
+        showWaterIssueDepth: usesWaterDepth(formState.reportBody.excavation.waterIssueMode),
+        showWalkoutExtraRearRemovalM: Boolean(formState.reportBody.excavation.walkoutBasement)
       },
       recommendation: {
         showDrainageUpgradeVariant,

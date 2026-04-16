@@ -359,7 +359,8 @@ export const legacyOutputCases: LegacyOutputCaseManifest[] = [
         inspectionDate: '2026-02-26',
         excavation: {
           houseFootingCutDepthsM: { frontLeftM: 1.3, frontRightM: 1.3, rearLeftM: 1.9, rearRightM: 1.9 },
-          walkoutBasement: true
+          walkoutBasement: true,
+          walkoutExtraRearRemovalM: 1.2
         },
         garage: { mode: 'same_elevation', slabOrganics: false }
       },
@@ -636,22 +637,22 @@ export const legacyOutputCases: LegacyOutputCaseManifest[] = [
     slug: 'already-poured-footing',
     sourceFilename: 'already poured footing example.docx',
     sourcePath: 'reference-letters/legacy/already poured footing example.docx',
-    status: 'partial',
+    status: 'supported',
     familyTags: ['as-constructed', 'garage', 'winter'],
     expectedHeadingVariant: 'Foundation Soils Inspection',
     expectedLegalDescriptionMode: 'single',
     expectedVisibleSections: ['TOP_BLOCK', 'P1', 'P2', 'P3', 'P4', 'P5', 'P7', 'CLOSING', 'SIGNOFF'],
-    expectedPositiveTextCues: ['strip footing forms', 'as placed, was considered adequate', 'attached garage'],
+    expectedPositiveTextCues: ['strip footing forms', 'as placed, was considered adequate', '2500 pounds per square foot', 'Job#'],
     expectedAbsentTextCues: ['P3A'],
     expectedSpecialShellBehaviors: ['Reviewed by signoff block'],
     notes: ['The canonical enum names still use “poured” for backward compatibility even though the real wording is “forms ... had been placed.”'],
     currentCapabilitySummary: {
-      canCurrentCodeReproduce: false,
-      missingDomainFields: ['dedicated as-constructed spread-footing family for 120 kPa / 2500 psf'],
+      canCurrentCodeReproduce: true,
+      missingDomainFields: [],
       inputDependencies: ['asConstructedMode suppresses the normal live-excavation branch'],
-      generationGaps: ['Spread-footing wording is structurally close but not yet the exact historical 120 kPa family'],
+      generationGaps: [],
       compositionGaps: [],
-      recommendedTests: ['as-constructed wording uses “as placed” and preserves garage derivation']
+      recommendedTests: ['as-constructed wording uses “as placed” and preserves garage derivation', '120 kPa family remains visible when selected']
     },
     formState: withOverrides(standardHouseBase, {
       topBlock: {
@@ -665,6 +666,7 @@ export const legacyOutputCases: LegacyOutputCaseManifest[] = [
         plan: '252 1945',
         streetAddress: '26 Cuddie Drive',
         includeClientJobNumber: true,
+        clientReferenceLabelFamily: 'job_hash',
         clientJobNumber: 'CBR-6223',
         includeSubdivision: true,
         subdivision: 'Keswick Subdivision',
@@ -676,6 +678,9 @@ export const legacyOutputCases: LegacyOutputCaseManifest[] = [
         excavation: {
           houseFootingCutDepthsM: { frontLeftM: 1.5, frontRightM: 1.5, rearLeftM: 2.9, rearRightM: 2.9 },
           asConstructedMode: 'poured_18in'
+        },
+        recommendation: {
+          spreadFootingFamily: 'default_120_kpa'
         },
         garage: { mode: 'same_elevation', slabOrganics: false }
       },

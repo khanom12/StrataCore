@@ -1,7 +1,6 @@
 import { buildArchivePath, buildFilename } from '@/lib/export/build-filename';
 import { normalizeDependentFormState } from '@/lib/form/normalize-dependent-state';
 import { buildSignoffModel } from '@/lib/signoff/build-signoff-model';
-import { formatSignoffName } from '@/lib/signoff/engineer-registry';
 import { createReviewFlag } from '@/lib/review/flags';
 import {
   deriveFrontAndRearCutRanges,
@@ -10,6 +9,17 @@ import {
   getFoundationInspectionSubjectLine
 } from '@/lib/domain/report-helpers';
 import { getEngineeredFillLayer, getUnderlyingNativeLayer } from '@/lib/domain/soil-layers';
+import {
+  buildAsConstructedExcavationSentence,
+  buildAsConstructedGarageAdequacySentence,
+  buildAsConstructedHouseAdequacySentence,
+  buildGarageExcavationSentence,
+  buildWalkoutSentence,
+  excavationIssueText,
+  getClientReferenceLabelText,
+  officeShellText,
+  signoffText
+} from '@/lib/seed/letter-surfaces';
 import {
   getClauseText,
   getReviewDecision,
@@ -149,7 +159,11 @@ function applyConditionalAdequacy(text: string): string {
 }
 
 function getSubjectLine(formState: FormState): string {
-  return getFoundationInspectionSubjectLine(formState.topBlock.headingSuffix, formState.reportBody.structureVariant);
+  return getFoundationInspectionSubjectLine(
+    formState.topBlock.subjectLineFamily,
+    formState.topBlock.headingSuffix,
+    formState.reportBody.structureVariant
+  );
 }
 
 function buildLegalDescriptionLines(formState: FormState): string[] {
@@ -203,7 +217,7 @@ function buildTopBlockParagraph(formState: FormState): GeneratedParagraph {
     `Re: ${getSubjectLine(formState)}`,
     ...legalDescriptionLines,
     formState.topBlock.includeClientJobNumber && formState.topBlock.clientJobNumber
-      ? `Client Job No.: ${formState.topBlock.clientJobNumber}`
+      ? `${getClientReferenceLabelText(formState.topBlock.clientReferenceLabelFamily)} ${formState.topBlock.clientJobNumber}`
       : null,
     formState.topBlock.includeSubdivision && formState.topBlock.subdivision ? formState.topBlock.subdivision : null,
     formState.topBlock.municipality
@@ -242,27 +256,47 @@ function appendWalkoutSentence(
   reviewFlags: ReviewFlag[]
 ) {
   const frontAndRear = deriveFrontAndRearCutRanges(formState.reportBody.excavation.houseFootingCutDepthsM);
+  const walkoutExtraRearRemovalM = formState.reportBody.excavation.walkoutExtraRearRemovalM;
 
   sentences.push(
-    `Rear walkout basement conditions were selected. Cuts of approximately ${formatNumber(
-      frontAndRear.front.minimumM
-    )} to ${formatNumber(frontAndRear.front.maximumM)} m below adjacent grade were recorded at the front of the excavation, and cuts of approximately ${formatNumber(
-      frontAndRear.rear.minimumM
-    )} to ${formatNumber(frontAndRear.rear.maximumM)} m below adjacent grade were recorded at the rear. Final frost-wall wording should still be confirmed during review.`
+    buildWalkoutSentence({
+      frontMinimum: formatNumber(frontAndRear.front.minimumM),
+      frontMaximum: formatNumber(frontAndRear.front.maximumM),
+      rearMinimum: formatNumber(frontAndRear.rear.minimumM),
+      rearMaximum: formatNumber(frontAndRear.rear.maximumM),
+      extraRearRemoval: walkoutExtraRearRemovalM !== undefined ? formatNumber(walkoutExtraRearRemovalM) : undefined
+    })
   );
   clauseIds.push('CL_018');
   ruleIds.push('DT_022');
-  reviewFlags.push(
-    createReviewFlag({
-      id: 'review-walkout-wording',
-      title: 'Walkout wording needs confirmation',
-      message:
-        'Walkout wording is now seeded from the recorded front and rear cut depths, but the final frost-wall wording remains review-sensitive until the office confirms the canonical branch.',
-      relatedSectionId: 'P2',
-      clauseRefs: toClauseRefs(['CL_018']),
-      ruleRefs: toRuleRefs(['DT_022'])
-    })
-  );
+
+  if (walkoutExtraRearRemovalM === undefined) {
+    reviewFlags.push(
+      createReviewFlag({
+        id: 'review-walkout-wording',
+        title: 'Walkout frost-wall wording needs confirmation',
+        message:
+          'The walkout excavation family is active, but the extra rear removal needed for the frost-wall wording is still missing.',
+        relatedSectionId: 'P2',
+        clauseRefs: toClauseRefs(['CL_018']),
+        ruleRefs: toRuleRefs(['DT_022'])
+      })
+    );
+  }
+
+  if (formState.reportBody.structureVariant === 'standard_house' && formState.reportBody.garage.mode !== 'none') {
+    reviewFlags.push(
+      createReviewFlag({
+        id: 'review-walkout-garage-ordering',
+        title: 'Walkout and garage combined ordering remains review-sensitive',
+        message:
+          'The current rules keep the garage excavation wording after the walkout wording, but the combined historical-family structure still needs office confirmation.',
+        relatedSectionId: 'P2',
+        clauseRefs: toClauseRefs(['CL_018', 'CL_021', 'CL_022']),
+        ruleRefs: toRuleRefs(['DT_022', 'DT_023', 'DT_024', 'DT_122'])
+      })
+    );
+  }
 }
 
 function appendGarageExcavationSentence(
@@ -278,20 +312,15 @@ function appendGarageExcavationSentence(
   const garage = formState.reportBody.garage;
 
   if (garage.mode === 'same_elevation') {
-    sentences.push(
-      'In addition, the excavation had been extended into the garage footing areas, with the bottom of that excavation at the same elevation as the house excavation floor.'
-    );
+    sentences.push(buildGarageExcavationSentence('same_elevation'));
     clauseIds.push('CL_021');
     ruleIds.push('DT_023');
   }
 
   if (garage.mode === 'higher_than_house') {
-    const offsetText =
-      garage.offsetAboveHouseM !== undefined
-        ? `at approximately ${formatNumber(garage.offsetAboveHouseM)} m above the house excavation level`
-        : 'above the house excavation level';
-
-    sentences.push(`In addition, an excavation had also been made in the garage footing area, with the excavation floor noted ${offsetText}.`);
+    sentences.push(
+      buildGarageExcavationSentence('higher_than_house', garage.offsetAboveHouseM !== undefined ? formatNumber(garage.offsetAboveHouseM) : undefined)
+    );
     clauseIds.push('CL_022');
     ruleIds.push('DT_024');
   }
@@ -319,19 +348,19 @@ function appendExcavationConditionAddOns(
   }
 
   if (excavation.oversizedTrenchMode && excavation.oversizedTrenchMode !== 'none') {
-    sentences.push(`An oversized service trench was noted ${trenchLocationLabel(excavation.trenchLocation)}.`);
+    sentences.push(excavationIssueText.oversizedTrenchObservation.replace('{location}', trenchLocationLabel(excavation.trenchLocation)));
     clauseIds.push('CL_024');
     ruleIds.push('DT_031');
   }
 
   if (excavation.looseMaterialMode === 'noted_only') {
-    sentences.push('Loose materials were noted across the excavation floor.');
+    sentences.push(excavationIssueText.looseMaterialNoted);
     clauseIds.push('CL_025');
     ruleIds.push('DT_032');
   }
 
   if (excavation.looseMaterialMode === 'standard_cleanup' || excavation.looseMaterialMode === 'thickened_footing_drainage') {
-    sentences.push('Areas of loose peeling clay material were encountered throughout the excavation floor and should be treated as a footing-preparation issue.');
+    sentences.push(excavationIssueText.looseMaterialCleanup);
     clauseIds.push('CL_025');
     ruleIds.push('DT_032');
   }
@@ -353,13 +382,13 @@ function appendExcavationConditionAddOns(
   }
 
   if (excavation.waterIssueMode === 'rain_softened') {
-    sentences.push('Surficial free water and saturated material were noted within the excavation after rainfall.');
+    sentences.push(excavationIssueText.rainSoftenedObservation);
     clauseIds.push('CL_036');
     ruleIds.push('DT_035');
   }
 
   if (excavation.waterIssueMode === 'exposed_electrical_trench_water_entry') {
-    sentences.push('An exposed electrical service trench was noted along the front excavation wall and may provide a path for surficial water into the excavation.');
+    sentences.push(excavationIssueText.exposedElectricalTrenchObservation);
     clauseIds.push('CL_039');
     ruleIds.push('DT_037');
   }
@@ -395,15 +424,11 @@ function buildP2Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
   const liveExcavationContext = excavation.asConstructedMode === 'none' && excavation.constructionStage === 'normal';
 
   if (excavation.asConstructedMode === 'poured_18in') {
-    sentences.push(
-      'At the time of inspection, the excavation was at footing grade and strip footing forms with a footing width of approximately 450 millimetres and depth of approximately 150 millimetres had been placed.'
-    );
+    sentences.push(buildAsConstructedExcavationSentence({ footingWidthMm: 450, footingDepthMm: 150 }));
     clauseIds.push('CL_019');
     ruleIds.push('DT_026');
   } else if (excavation.asConstructedMode === 'poured_20in') {
-    sentences.push(
-      'At the time of inspection, the excavation was at footing grade and strip footing forms with a footing width of approximately 500 millimetres and depth of approximately 200 millimetres had been placed.'
-    );
+    sentences.push(buildAsConstructedExcavationSentence({ footingWidthMm: 500, footingDepthMm: 200 }));
     clauseIds.push('CL_019');
     ruleIds.push('DT_027');
   } else if (excavation.asConstructedMode === 'poured_24in') {
@@ -452,7 +477,7 @@ function buildP2Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
     sentences.push('At the time of inspection, the excavation was at footing grade and was advanced by a backhoe.');
   }
 
-  if (cutRange.minimumM !== undefined || cutRange.maximumM !== undefined) {
+  if (!excavation.walkoutBasement && (cutRange.minimumM !== undefined || cutRange.maximumM !== undefined)) {
     sentences.push(
       `Cuts of approximately ${formatNumber(cutRange.minimumM)} to ${formatNumber(
         cutRange.maximumM
@@ -636,9 +661,7 @@ function buildSupplementalIssueParagraph(formState: FormState, reviewFlags: Revi
 
   if (excavation.waterIssueMode === 'free_water_in_auger_holes_basic') {
     sentences.push(
-      `At the time of inspection, free water was noted pooling in the auger holes approximately ${buildWaterDepthText(
-        excavation.waterObservedDepthBelowFootingM
-      )}. The free water must be removed from below all footings just prior to concrete placement. Temporary dewatering may be required. Due to the infiltrating water in the auger holes, the house drainage should be upgraded to include interior as well as exterior weeping tile. Care must also be taken to place the weeping tile level, with no bumps or sags and have positive flow to the sump.`
+      excavationIssueText.freeWaterBasic.replace('{depth}', buildWaterDepthText(excavation.waterObservedDepthBelowFootingM))
     );
     clauseIds.push('CL_026');
     ruleIds.push('DT_034', 'DT_081');
@@ -647,13 +670,11 @@ function buildSupplementalIssueParagraph(formState: FormState, reviewFlags: Revi
 
   if (excavation.waterIssueMode === 'free_water_in_auger_holes_upgraded_drainage') {
     sentences.push(
-      `At the time of inspection, free water was noted pooling in the auger holes approximately ${buildWaterDepthText(
-        excavation.waterObservedDepthBelowFootingM
-      )}. Due to the infiltrating water in the auger holes, the house drainage should be upgraded to include a washed rock slab base and interior as well as exterior weeping tile with two laterals.`
+      excavationIssueText.freeWaterUpgradedDrainage.replace('{depth}', buildWaterDepthText(excavation.waterObservedDepthBelowFootingM))
     );
 
     if (recommendation.drainageDrawingAttached) {
-      sentences.push('A drawing depicting the recommended drainage measures is attached.');
+      sentences.push(excavationIssueText.upgradedDrainageDrawing);
     }
 
     clauseIds.push('CL_026');
@@ -662,38 +683,28 @@ function buildSupplementalIssueParagraph(formState: FormState, reviewFlags: Revi
   }
 
   if (excavation.waterIssueMode === 'rain_softened') {
-    sentences.push(
-      'The water softened material should be adequately dried or removed from underneath the footing areas prior to pouring. The excavated material can be accounted for by a thickened footing. Care must also be taken to place the weeping tile level, with no bumps or sags and maintain positive drainage.'
-    );
+    sentences.push(excavationIssueText.rainSoftenedRemediation);
     clauseIds.push('CL_036', 'CL_020');
     ruleIds.push('DT_035', 'DT_082');
     requiresConditionalAdequacy = true;
   }
 
   if (excavation.waterIssueMode === 'exposed_electrical_trench_water_entry') {
-    sentences.push(
-      'It appears that the free water is due to surficial water draining into the excavation via an exposed electrical service trench in the front excavation wall. The free water encountered should be removed from within the excavation and the excavation should be adequately dried. Also, any water softened and/or disturbed material should be excavated from beneath the footings. Care must also be taken to place the weeping tile level, with no bumps or sags.'
-    );
+    sentences.push(excavationIssueText.exposedElectricalTrenchRemediation);
     clauseIds.push('CL_039');
     ruleIds.push('DT_037');
     requiresConditionalAdequacy = true;
   }
 
   if (excavation.oversizedTrenchMode === 'reinforcement') {
-    sentences.push(
-      `Due to an oversized cut in the service trench ${trenchLocationLabel(
-        excavation.trenchLocation
-      )}, the front garage footing should be reinforced with one row of 2-10M bars spread evenly throughout the footing. The front garage wall should be reinforced with four rows of 2-10M bars, spread evenly throughout the wall.`
-    );
+    sentences.push(excavationIssueText.oversizedTrenchReinforcement.replace('{location}', trenchLocationLabel(excavation.trenchLocation)));
     clauseIds.push('CL_024');
     ruleIds.push('DT_079');
     requiresConditionalAdequacy = true;
   }
 
   if (excavation.oversizedTrenchMode === 'fillcrete_gravel') {
-    sentences.push(
-      'Due to the oversized service trench, the existing trench fill materials should be removed from beneath the footing areas and backfilled with fillcrete. Another option would be to backfill the over excavated service trench to the design footing elevation with filter cloth and washed rock or crushed gravel. The foundation drainage must be modified to drain the washed rock or crushed gravel and ensure positive flow within the weeping tile towards the sump.'
-    );
+    sentences.push(excavationIssueText.oversizedTrenchFillcrete);
     clauseIds.push('CL_035');
     ruleIds.push('DT_079', 'DT_085');
     requiresConditionalAdequacy = true;
@@ -712,9 +723,7 @@ function buildSupplementalIssueParagraph(formState: FormState, reviewFlags: Revi
   }
 
   if (excavation.oversizedTrenchMode === 'precast_review') {
-    sentences.push(
-      'An oversized service trench requiring an alternate pre-cast or special remediation package was selected. This branch remains visible for office review before issue.'
-    );
+    sentences.push(excavationIssueText.oversizedTrenchPrecast);
     clauseIds.push('CL_024');
     ruleIds.push('DT_085');
     requiresConditionalAdequacy = true;
@@ -733,15 +742,13 @@ function buildSupplementalIssueParagraph(formState: FormState, reviewFlags: Revi
   }
 
   if (excavation.looseMaterialMode === 'standard_cleanup') {
-    sentences.push('All loose material should be removed from the footing bearing surface prior to placement of concrete.');
+    sentences.push(excavationIssueText.looseMaterialPlacementCleanup);
     clauseIds.push('CL_025');
     ruleIds.push('DT_032', 'DT_080');
   }
 
   if (excavation.looseMaterialMode === 'thickened_footing_drainage') {
-    sentences.push(
-      'Areas of loose peeling clay material should be hand removed from below the footing. The excavated material can be accounted for by a thickened footing. Care must also be taken to place the weeping tile level, with no bumps or sags and have positive flow to the sump.'
-    );
+    sentences.push(excavationIssueText.looseMaterialThickenedFooting);
     clauseIds.push('CL_025', 'CL_020');
     ruleIds.push('DT_032', 'DT_080');
     requiresConditionalAdequacy = true;
@@ -818,16 +825,14 @@ function buildBaseHouseRecommendation(formState: FormState, reviewFlags: ReviewF
   }
 
   if (excavation.asConstructedMode === 'poured_18in') {
-    text =
-      'The soil conditions at this site were considered suitable for the construction of a standard house foundation. The strip footing size, as placed, was considered adequate for this residence.';
+    text = buildAsConstructedHouseAdequacySentence();
     clauseIds.push('CL_019');
     ruleIds.push('DT_072');
     return { text, clauseIds, ruleIds };
   }
 
   if (excavation.asConstructedMode === 'poured_20in') {
-    text =
-      'The soil conditions at this site were considered suitable for the construction of a standard house foundation. The strip footing size, as placed, was considered adequate for this residence.';
+    text = buildAsConstructedHouseAdequacySentence();
     clauseIds.push('CL_019');
     ruleIds.push('DT_073');
     return { text, clauseIds, ruleIds };
@@ -921,6 +926,12 @@ function buildP4Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
     );
   }
 
+  if (structureVariant === 'standard_house' && recommendation.spreadFootingFamily === 'default_120_kpa') {
+    sentences.push(getClauseText('CL_053'));
+    clauseIds.push('CL_053');
+    ruleIds.push('DT_116');
+  }
+
   if (structureVariant === 'standard_house' && recommendation.spreadFootingFamily === 'review_100_kpa') {
     sentences.push(getClauseText('CL_046'));
     clauseIds.push('CL_046');
@@ -967,9 +978,7 @@ function buildP5Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
   const useConditionalLead = issueContext.requiresConditionalAdequacy;
 
   if (excavation.asConstructedMode === 'poured_18in' || excavation.asConstructedMode === 'poured_20in') {
-    sentences.push(
-      'It appears the building contractor utilized a standard footing form for the attached garage. The strip footing size, as constructed, was also considered adequate for this garage.'
-    );
+    sentences.push(buildAsConstructedGarageAdequacySentence());
     clauseIds.push('CL_019');
     ruleIds.push('DT_072');
   } else if (recommendation.footingBasis === 'modified') {
@@ -1066,7 +1075,7 @@ function buildClosingParagraph(): GeneratedParagraph {
     id: 'closing',
     sectionId: 'CLOSING',
     title: 'Closing',
-    text: 'We trust this information is considered satisfactory. Should you have any questions, please contact our office.',
+    text: officeShellText.closingParagraph,
     order: 90,
     clauseIds: ['P8'],
     ruleIds: ['DT_111']
@@ -1075,27 +1084,20 @@ function buildClosingParagraph(): GeneratedParagraph {
 
 function buildSignoffParagraph(formState: FormState): GeneratedParagraph {
   const signoff = buildSignoffModel(formState.signoff);
-  const engineerName = formatSignoffName(signoff.signingEngineer.profile);
   const signoffLines = [
     signoff.salutation,
     '',
     signoff.organization,
     '',
     ...signoff.lines.flatMap((line) => [line.label, line.value]),
-    signoff.signingEngineer.profile.memberNumber
-      ? `APEGA Member #: ${signoff.signingEngineer.profile.memberNumber}`
-      : 'APEGA Member #: [registry pending]',
-    signoff.signingEngineer.profile.stampAssetKey
-      ? `[Engineer stamp placeholder: ${signoff.signingEngineer.profile.stampAssetKey}]`
-      : `[Engineer stamp placeholder for ${engineerName}]`,
-    signoff.permitToPractice.placeholderText
+    signoff.signingEngineer.profile.memberNumber ? `${signoffText.labels.memberNumber} ${signoff.signingEngineer.profile.memberNumber}` : null
   ];
 
   return createParagraph({
     id: 'signoff',
     sectionId: 'SIGNOFF',
     title: 'Signoff',
-    text: signoffLines.join('\n'),
+    text: signoffLines.filter((line): line is string => line !== null).join('\n'),
     order: 100,
     clauseIds: ['SIG_01', 'SIG_02', 'SIG_03', 'SIG_04'],
     ruleIds: ['DT_112', 'DT_113', 'DT_114', 'DT_115']

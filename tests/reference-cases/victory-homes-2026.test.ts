@@ -27,9 +27,7 @@ function flattenVisibleText(blocks: LetterDocumentBodyBlock[]): string {
             block.salutationLine,
             block.organization,
             ...block.lines.flatMap((line) => [line.label, line.value]),
-            block.engineerMemberNumberLine,
-            block.stampPlaceholderLine,
-            block.permitToPracticeLine
+            ...(block.engineerMemberNumberLine ? [block.engineerMemberNumberLine] : [])
           ].join('\n');
         case 'spacer_block':
         case 'trace_block':
@@ -71,15 +69,18 @@ describe('Victory Homes 2026 reference case', () => {
 
     expect(visibleText).toContain('CONSULTING AND TESTING ENGINEERS');
     expect(visibleText).toContain('2304 - 119 Avenue NE');
+    expect(visibleText).toContain('February 4, 2026');
     expect(visibleText).toContain('780-489-0700');
-    expect(visibleText).toContain('J.R. Paine & Associates Ltd.\tPage 2 of 2');
-    expect(visibleText).toContain('Foundation Soils Inspection\tFile No. 5478 - 1');
+    expect(visibleText).toContain('J.R. Paine & Associates Ltd.');
+    expect(visibleText).toContain('Foundation Soil Inspection\tFile No. 5478 - 1');
+    expect(document.pages.at(-1)?.footerBlock.archivePathLine).toContain('h38566vic.docx');
     expect(visibleText).toContain('Reviewed by,');
     expect(visibleText).toContain('APEGA Member #: 89667');
     expect(visibleText).not.toContain('Edmonton office block placeholder');
     expect(visibleText).not.toContain('First-page office footer placeholder');
     expect(visibleText).not.toContain('First-page header placeholder');
     expect(visibleText).not.toContain('LETTER - CONTINUED');
-    expect(visibleText).not.toContain('h38566');
+    expect(visibleText).not.toContain('[Engineer stamp placeholder');
+    expect(visibleText).not.toContain('[Permit-to-practice');
   });
 });

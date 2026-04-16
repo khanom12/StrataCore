@@ -5,6 +5,8 @@ import type { FormState, SoilLayerDescriptor } from '@/types/domain';
 const STORAGE_KEY = 'stratacore-letter-draft';
 
 const LEGAL_DESCRIPTION_MODES = ['single', 'custom'] as const;
+const SUBJECT_LINE_FAMILIES = ['singular', 'plural'] as const;
+const CLIENT_REFERENCE_LABEL_FAMILIES = ['client_job_no', 'job_hash'] as const;
 const STRUCTURE_VARIANTS = ['standard_house', 'rear_garage_garden_suite'] as const;
 const GARAGE_MODES = ['none', 'same_elevation', 'higher_than_house'] as const;
 const AS_CONSTRUCTED_MODES = ['none', 'poured_18in', 'poured_20in', 'poured_24in', 'walls_and_footing'] as const;
@@ -50,7 +52,7 @@ const CONSISTENCY_DENSITY_DESCRIPTORS = [
 ] as const;
 const TRACE_FEATURES = ['oxides', 'white_precipitates', 'coal', 'gravel', 'organics', 'rootlets'] as const;
 const FOOTING_BASIS_OPTIONS = ['standard', 'modified'] as const;
-const SPREAD_FOOTING_FAMILIES = ['omit', 'default_140_kpa', 'review_100_kpa'] as const;
+const SPREAD_FOOTING_FAMILIES = ['omit', 'default_140_kpa', 'default_120_kpa', 'review_100_kpa'] as const;
 const DRAINAGE_UPGRADE_VARIANTS = ['none', 'washed_rock_interior_exterior_two_laterals'] as const;
 const SULPHATE_CLASSES = ['negligible', 'moderate', 'severe', 'very_severe'] as const;
 
@@ -60,6 +62,7 @@ type LegacyScaffoldDraft = {
     fileNumber?: string;
     clientName?: string;
     clientMailingAddress?: string[];
+    subjectLineFamily?: FormState['topBlock']['subjectLineFamily'];
     headingSuffix?: string;
     includeLegalDescription?: boolean;
     lot?: string;
@@ -67,6 +70,7 @@ type LegacyScaffoldDraft = {
     plan?: string;
     streetAddress?: string;
     includeClientJobNumber?: boolean;
+    clientReferenceLabelFamily?: FormState['topBlock']['clientReferenceLabelFamily'];
     clientJobNumber?: string;
     includeSubdivision?: boolean;
     subdivision?: string;
@@ -80,6 +84,7 @@ type LegacyScaffoldDraft = {
     garageMode?: FormState['reportBody']['garage']['mode'];
     garageOffsetAboveHouseM?: number;
     walkoutBasement?: boolean;
+    walkoutExtraRearRemovalM?: number;
     gardenSuiteMode?: boolean;
     asConstructedMode?: FormState['reportBody']['excavation']['asConstructedMode'];
     constructionStage?: FormState['reportBody']['excavation']['constructionStage'];
@@ -120,6 +125,7 @@ type InterimNormalizedDraft = {
     fileNumber?: string;
     clientName?: string;
     clientMailingAddress?: string[];
+    subjectLineFamily?: FormState['topBlock']['subjectLineFamily'];
     headingSuffix?: string;
     legalDescription?: {
       include?: boolean;
@@ -132,6 +138,7 @@ type InterimNormalizedDraft = {
       include?: boolean;
       value?: string;
     };
+    clientReferenceLabelFamily?: FormState['topBlock']['clientReferenceLabelFamily'];
     subdivision?: {
       include?: boolean;
       value?: string;
@@ -148,6 +155,7 @@ type InterimNormalizedDraft = {
       garageMode?: FormState['reportBody']['garage']['mode'];
       garageOffsetAboveHouseM?: number;
       walkoutBasement?: boolean;
+      walkoutExtraRearRemovalM?: number;
       gardenSuiteMode?: boolean;
       asConstructedMode?: FormState['reportBody']['excavation']['asConstructedMode'];
       constructionStage?: FormState['reportBody']['excavation']['constructionStage'];
@@ -367,6 +375,7 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
       clientName: readString(topBlock.clientName) ?? defaultFormState.topBlock.clientName,
       clientMailingAddress: readStringArray(topBlock.clientMailingAddress) ?? defaultFormState.topBlock.clientMailingAddress,
       headingSuffix: readString(topBlock.headingSuffix) ?? defaultFormState.topBlock.headingSuffix,
+      subjectLineFamily: readEnum(topBlock.subjectLineFamily, SUBJECT_LINE_FAMILIES) ?? 'plural',
       includeLegalDescription: readBoolean(topBlock.includeLegalDescription) ?? defaultFormState.topBlock.includeLegalDescription,
       legalDescriptionMode:
         readEnum(topBlock.legalDescriptionMode, LEGAL_DESCRIPTION_MODES) ??
@@ -378,6 +387,8 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
         readStringArray(topBlock.customLegalDescriptionLines) ?? defaultFormState.topBlock.customLegalDescriptionLines,
       streetAddress: readString(topBlock.streetAddress) ?? defaultFormState.topBlock.streetAddress,
       includeClientJobNumber: readBoolean(topBlock.includeClientJobNumber) ?? defaultFormState.topBlock.includeClientJobNumber,
+      clientReferenceLabelFamily:
+        readEnum(topBlock.clientReferenceLabelFamily, CLIENT_REFERENCE_LABEL_FAMILIES) ?? 'client_job_no',
       clientJobNumber: readString(topBlock.clientJobNumber) ?? defaultFormState.topBlock.clientJobNumber,
       includeSubdivision: readBoolean(topBlock.includeSubdivision) ?? defaultFormState.topBlock.includeSubdivision,
       subdivision: readString(topBlock.subdivision) ?? defaultFormState.topBlock.subdivision,
@@ -397,6 +408,8 @@ function mergeWithDefaultFormState(value: DeepPartial<FormState> | unknown): For
           rearRightM: readNumber(cutDepths.rearRightM) ?? defaultFormState.reportBody.excavation.houseFootingCutDepthsM.rearRightM
         },
         walkoutBasement: readBoolean(excavation.walkoutBasement) ?? defaultFormState.reportBody.excavation.walkoutBasement,
+        walkoutExtraRearRemovalM:
+          readNumber(excavation.walkoutExtraRearRemovalM) ?? defaultFormState.reportBody.excavation.walkoutExtraRearRemovalM,
         asConstructedMode: readEnum(excavation.asConstructedMode, AS_CONSTRUCTED_MODES) ?? defaultFormState.reportBody.excavation.asConstructedMode,
         constructionStage: readEnum(excavation.constructionStage, CONSTRUCTION_STAGES) ?? defaultFormState.reportBody.excavation.constructionStage,
         siteHistory: readEnum(excavation.siteHistory, SITE_HISTORY_VALUES) ?? defaultFormState.reportBody.excavation.siteHistory,
@@ -489,6 +502,7 @@ function migrateLegacyScaffoldDraft(legacy: LegacyScaffoldDraft): FormState {
       fileNumber: legacy.meta?.fileNumber,
       clientName: legacy.meta?.clientName,
       clientMailingAddress: legacy.meta?.clientMailingAddress,
+      subjectLineFamily: legacy.meta?.subjectLineFamily,
       headingSuffix: legacy.meta?.headingSuffix,
       includeLegalDescription: legacy.meta?.includeLegalDescription,
       lot: legacy.meta?.lot,
@@ -496,6 +510,7 @@ function migrateLegacyScaffoldDraft(legacy: LegacyScaffoldDraft): FormState {
       plan: legacy.meta?.plan,
       streetAddress: legacy.meta?.streetAddress,
       includeClientJobNumber: legacy.meta?.includeClientJobNumber,
+      clientReferenceLabelFamily: legacy.meta?.clientReferenceLabelFamily,
       clientJobNumber: legacy.meta?.clientJobNumber,
       includeSubdivision: legacy.meta?.includeSubdivision,
       subdivision: legacy.meta?.subdivision,
@@ -516,6 +531,7 @@ function migrateLegacyScaffoldDraft(legacy: LegacyScaffoldDraft): FormState {
           rearRightM: maximumCut
         },
         walkoutBasement: legacy.p2?.walkoutBasement,
+        walkoutExtraRearRemovalM: legacy.p2?.walkoutExtraRearRemovalM,
         asConstructedMode: legacy.p2?.asConstructedMode,
         constructionStage: legacy.p2?.constructionStage,
         siteHistory: legacy.p2?.siteHistory,
@@ -568,6 +584,7 @@ function migrateInterimNormalizedDraft(interim: InterimNormalizedDraft): FormSta
       fileNumber: interim.topBlock?.fileNumber,
       clientName: interim.topBlock?.clientName,
       clientMailingAddress: interim.topBlock?.clientMailingAddress,
+      subjectLineFamily: interim.topBlock?.subjectLineFamily,
       headingSuffix: interim.topBlock?.headingSuffix,
       includeLegalDescription: interim.topBlock?.legalDescription?.include,
       lot: interim.topBlock?.legalDescription?.lot,
@@ -575,6 +592,7 @@ function migrateInterimNormalizedDraft(interim: InterimNormalizedDraft): FormSta
       plan: interim.topBlock?.legalDescription?.plan,
       streetAddress: interim.topBlock?.streetAddress,
       includeClientJobNumber: interim.topBlock?.clientJobNumber?.include,
+      clientReferenceLabelFamily: interim.topBlock?.clientReferenceLabelFamily,
       clientJobNumber: interim.topBlock?.clientJobNumber?.value,
       includeSubdivision: interim.topBlock?.subdivision?.include,
       subdivision: interim.topBlock?.subdivision?.value,
@@ -589,6 +607,7 @@ function migrateInterimNormalizedDraft(interim: InterimNormalizedDraft): FormSta
       excavation: {
         houseFootingCutDepthsM: interim.reportBody?.excavation?.houseFootingCutDepthsM,
         walkoutBasement: interim.reportBody?.excavation?.walkoutBasement,
+        walkoutExtraRearRemovalM: interim.reportBody?.excavation?.walkoutExtraRearRemovalM,
         asConstructedMode: interim.reportBody?.excavation?.asConstructedMode,
         constructionStage: interim.reportBody?.excavation?.constructionStage,
         siteHistory: interim.reportBody?.excavation?.siteHistory,

@@ -323,6 +323,15 @@ export function InspectionForm() {
             />
             <Field label="File number" value={formState.topBlock.fileNumber} onChange={(value) => updateTopBlock('fileNumber', value)} />
             <Field label="Client name" value={formState.topBlock.clientName} onChange={(value) => updateTopBlock('clientName', value)} />
+            <SelectField
+              label="Subject line style"
+              value={formState.topBlock.subjectLineFamily}
+              onChange={(value) => updateTopBlock('subjectLineFamily', value as FormState['topBlock']['subjectLineFamily'])}
+              options={[
+                ['singular', 'Foundation Soil Inspection'],
+                ['plural', 'Foundation Soils Inspection']
+              ]}
+            />
             <Field
               label="Heading detail (optional)"
               value={formState.topBlock.headingSuffix ?? ''}
@@ -388,11 +397,24 @@ export function InspectionForm() {
               onChange={(checked) => updateTopBlock('includeClientJobNumber', checked)}
             />
             {dependencyVisibility.topBlock.showClientJobNumber ? (
-              <Field
-                label="Client reference number"
-                value={formState.topBlock.clientJobNumber ?? ''}
-                onChange={(value) => updateTopBlock('clientJobNumber', value)}
-              />
+              <>
+                <SelectField
+                  label="Client reference label"
+                  value={formState.topBlock.clientReferenceLabelFamily}
+                  onChange={(value) =>
+                    updateTopBlock('clientReferenceLabelFamily', value as FormState['topBlock']['clientReferenceLabelFamily'])
+                  }
+                  options={[
+                    ['client_job_no', 'Client Job No.'],
+                    ['job_hash', 'Job#']
+                  ]}
+                />
+                <Field
+                  label="Client reference number"
+                  value={formState.topBlock.clientJobNumber ?? ''}
+                  onChange={(value) => updateTopBlock('clientJobNumber', value)}
+                />
+              </>
             ) : null}
             {dependencyVisibility.topBlock.showSubdivision ? (
               <Field label="Subdivision" value={formState.topBlock.subdivision ?? ''} onChange={(value) => updateTopBlock('subdivision', value)} />
@@ -444,6 +466,14 @@ export function InspectionForm() {
               checked={Boolean(formState.reportBody.excavation.walkoutBasement)}
               onChange={(checked) => updateExcavation('walkoutBasement', checked)}
             />
+            {dependencyVisibility.reportBody.excavation.showWalkoutExtraRearRemovalM ? (
+              <Field
+                label="Extra rear removal for frost wall (m)"
+                type="number"
+                value={formState.reportBody.excavation.walkoutExtraRearRemovalM?.toString() ?? ''}
+                onChange={(value) => updateExcavation('walkoutExtraRearRemovalM', value ? Number(value) : undefined)}
+              />
+            ) : null}
             <SelectField
               label="Inspection timing"
               value={formState.reportBody.excavation.constructionStage ?? 'normal'}
@@ -460,8 +490,8 @@ export function InspectionForm() {
               onChange={(value) => updateExcavation('asConstructedMode', value as FormState['reportBody']['excavation']['asConstructedMode'])}
               options={[
                 ['none', 'None'],
-                ['poured_18in', '18-inch footing already poured'],
-                ['poured_20in', '20-inch footing already poured'],
+                ['poured_18in', '18-inch strip footing forms placed'],
+                ['poured_20in', '20-inch strip footing forms placed'],
                 ['poured_24in', '24-inch footing needs review'],
                 ['walls_and_footing', 'Walls and footing already constructed']
               ]}
@@ -777,6 +807,7 @@ export function InspectionForm() {
               }
               options={[
                 ['default_140_kpa', '140 kPa working value'],
+                ['default_120_kpa', '120 kPa / 2500 psf value'],
                 ['review_100_kpa', '100 kPa review option'],
                 ['omit', 'Do not include in this draft']
               ]}

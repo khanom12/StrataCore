@@ -1,6 +1,7 @@
 import { buildSignoffModel } from '@/lib/signoff/build-signoff-model';
-import { getFoundationInspectionSubjectLine } from '@/lib/domain/report-helpers';
-import { formatSignoffName } from '@/lib/signoff/engineer-registry';
+import { formatDisplayDate, getFoundationInspectionSubjectLine } from '@/lib/domain/report-helpers';
+import { validateDraftForClientOutput } from '@/lib/form/validate-draft';
+import { getClientReferenceLabelText, officeShellText } from '@/lib/seed/letter-surfaces';
 import { getReportSectionDefinition, toClauseRefs, toRuleRefs } from '@/lib/seed/source-data';
 import type { FormState, GeneratedParagraph, GenerationResult, SectionId } from '@/types/domain';
 import type {
@@ -14,7 +15,11 @@ import type {
 } from '@/types/document';
 
 function getSubjectLine(formState: FormState) {
-  return getFoundationInspectionSubjectLine(formState.topBlock.headingSuffix, formState.reportBody.structureVariant);
+  return getFoundationInspectionSubjectLine(
+    formState.topBlock.subjectLineFamily,
+    formState.topBlock.headingSuffix,
+    formState.reportBody.structureVariant
+  );
 }
 
 function buildLegalDescriptionLines(formState: FormState) {
@@ -58,7 +63,7 @@ function buildOfficeAddressBlock(topBlock?: GeneratedParagraph): MetadataBlock {
     role: 'office_address',
     alignment: 'right',
     title: definition?.name ?? 'Office Address Block',
-    lines: ['2304 - 119 Avenue NE', 'Edmonton, Alberta', 'T6S 1B3'],
+    lines: [...officeShellText.officeAddress],
     emphasisLineIndexes: [],
     sectionId: topBlock?.sectionId,
     clauseRefs: topBlock?.clauseRefs ?? toClauseRefs(['META_01']),
@@ -67,7 +72,7 @@ function buildOfficeAddressBlock(topBlock?: GeneratedParagraph): MetadataBlock {
 }
 
 function buildDateAndFileBlock(formState: FormState, topBlock: GeneratedParagraph): MetadataBlock {
-  const dateLine = formState.topBlock.letterDate;
+  const dateLine = formatDisplayDate(formState.topBlock.letterDate);
   const fileNumberLine = `File No. ${formState.topBlock.fileNumber}`;
 
   return {
@@ -105,11 +110,11 @@ function buildClientAddressBlock(formState: FormState, topBlock: GeneratedParagr
 function buildReBlock(formState: FormState, topBlock: GeneratedParagraph): MetadataBlock {
   const detailLines = [
     ...buildLegalDescriptionLines(formState),
-    formState.topBlock.includeSubdivision && formState.topBlock.subdivision ? formState.topBlock.subdivision : null,
-    formState.topBlock.municipality,
     formState.topBlock.includeClientJobNumber && formState.topBlock.clientJobNumber
-      ? `Client Job No.: ${formState.topBlock.clientJobNumber}`
-      : null
+      ? `${getClientReferenceLabelText(formState.topBlock.clientReferenceLabelFamily)} ${formState.topBlock.clientJobNumber}`
+      : null,
+    formState.topBlock.includeSubdivision && formState.topBlock.subdivision ? formState.topBlock.subdivision : null,
+    formState.topBlock.municipality
   ].filter((value): value is string => Boolean(value));
 
   return {
@@ -134,11 +139,11 @@ function buildFirstPageHeader(): HeaderBlock {
     role: 'first_page_identity',
     alignment: 'center',
     title: 'First-page header',
-    lines: ['J.R. Paine & Associates Ltd.', 'CONSULTING AND TESTING ENGINEERS', 'EDMONTON - GRANDE PRAIRIE - PEACE RIVER']
+    lines: [officeShellText.companyName, officeShellText.companySubtitle, officeShellText.companyCities]
   };
 }
 
-function buildContinuationHeader(formState: FormState, pageNumber: number, totalPages: number): HeaderBlock {
+function buildContinuationHeader(formState: FormState): HeaderBlock {
   const subjectLine = getSubjectLine(formState);
   const fileNumberLine = `File No. ${formState.topBlock.fileNumber}`;
 
@@ -148,18 +153,14 @@ function buildContinuationHeader(formState: FormState, pageNumber: number, total
     role: 'continuation_subject',
     alignment: 'left',
     title: 'Continuation header',
-    lines: [`J.R. Paine & Associates Ltd.\tPage ${pageNumber} of ${totalPages}`, `${subjectLine}\t${fileNumberLine}`],
+    lines: [officeShellText.companyName, `${subjectLine}\t${fileNumberLine}`],
     subjectLine,
     fileNumberLine
   };
 }
 
 function buildOfficeContacts() {
-  return [
-    { city: 'EDMONTON', phone: '780-489-0700' },
-    { city: 'GRANDE PRAIRIE', phone: '780-532-1515' },
-    { city: 'PEACE RIVER', phone: '780-624-4966' }
-  ];
+  return [...officeShellText.officeContacts];
 }
 
 function buildFirstPageFooter(): FooterBlock {
@@ -178,7 +179,7 @@ function buildFirstPageFooter(): FooterBlock {
   };
 }
 
-function buildContinuationFooter(): FooterBlock {
+function buildContinuationFooter(archivePathLine?: string): FooterBlock {
   const offices = buildOfficeContacts();
 
   return {
@@ -189,14 +190,14 @@ function buildContinuationFooter(): FooterBlock {
     title: 'Continuation footer',
     lines: offices.flatMap((office) => [office.city, office.phone]),
     offices,
+    archivePathLine,
     clauseRefs: toClauseRefs(['FMT_03', 'SIG_04']),
-    ruleRefs: toRuleRefs(['DT_115'])
+    ruleRefs: toRuleRefs(['DT_115', 'DT_121'])
   };
 }
 
 function buildSignoffBlock(formState: FormState, paragraph: GeneratedParagraph): { block: SignoffBlock; warnings: string[] } {
   const signoff = buildSignoffModel(formState.signoff);
-  const engineerName = formatSignoffName(signoff.signingEngineer.profile);
 
   return {
     block: {
@@ -207,33 +208,27 @@ function buildSignoffBlock(formState: FormState, paragraph: GeneratedParagraph):
       salutationLine: signoff.salutation,
       organization: signoff.organization,
       lines: signoff.lines,
-      engineerMemberNumberLine: signoff.signingEngineer.profile.memberNumber
-        ? `APEGA Member #: ${signoff.signingEngineer.profile.memberNumber}`
-        : 'APEGA Member #: [registry pending]',
-      stampPlaceholderLine: signoff.signingEngineer.profile.stampAssetKey
-        ? `[Engineer stamp placeholder: ${signoff.signingEngineer.profile.stampAssetKey}]`
-        : `[Engineer stamp placeholder for ${engineerName}]`,
-      permitToPracticeLine: signoff.permitToPractice.placeholderText,
+      engineerMemberNumberLine: signoff.signingEngineer.profile.memberNumber ? `APEGA Member #: ${signoff.signingEngineer.profile.memberNumber}` : undefined,
       sectionId: 'SIGNOFF',
       clauseRefs: paragraph.clauseRefs,
-      ruleRefs: paragraph.ruleRefs
+      ruleRefs: [...paragraph.ruleRefs, ...toRuleRefs(['DT_120'])]
     },
     warnings: signoff.warnings
   };
 }
 
-function collectReadinessLabel(reviewFlagCount: number, exportWarningCount: number): ComposedLetterDocument['readiness'] {
+function collectReadinessLabel(validationIssueCount: number, reviewFlagCount: number): ComposedLetterDocument['readiness'] {
+  if (validationIssueCount > 0) {
+    return {
+      status: 'blocked',
+      label: `Export blocked (${validationIssueCount})`
+    };
+  }
+
   if (reviewFlagCount > 0) {
     return {
       status: 'review_required',
       label: `Review flags present (${reviewFlagCount})`
-    };
-  }
-
-  if (exportWarningCount > 0) {
-    return {
-      status: 'warning',
-      label: `Export generated with warnings (${exportWarningCount})`
     };
   }
 
@@ -248,9 +243,10 @@ function getParagraphBySection(result: GenerationResult, sectionId: SectionId): 
 }
 
 export function composeLetterDocument(formState: FormState, result: GenerationResult): ComposedLetterDocument {
+  const validationIssues = validateDraftForClientOutput(formState, result);
   const exportWarnings: string[] = [];
   const firstPageBodyBlocks: LetterDocumentBodyBlock[] = [];
-  const continuationBodyBlocks: LetterDocumentBodyBlock[] = [];
+  const continuationParagraphBlocks: LetterDocumentBodyBlock[] = [];
   const firstPageBodySections: SectionId[] = ['P1', 'P2', 'P3', 'P3A', 'P4'];
   const topBlock = getParagraphBySection(result, 'TOP_BLOCK');
   const closing = getParagraphBySection(result, 'CLOSING');
@@ -271,39 +267,61 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
     if (firstPageBodySections.includes(paragraph.sectionId)) {
       firstPageBodyBlocks.push(buildParagraphBlock(paragraph));
     } else {
-      continuationBodyBlocks.push(buildParagraphBlock(paragraph));
+      continuationParagraphBlocks.push(buildParagraphBlock(paragraph));
     }
   }
 
   if (closing) {
-    continuationBodyBlocks.push(buildParagraphBlock(closing));
+    continuationParagraphBlocks.push(buildParagraphBlock(closing));
   }
 
+  let signoffBlock: ReturnType<typeof buildSignoffBlock> | undefined;
   if (signoffParagraph) {
-    const signoffBlock = buildSignoffBlock(formState, signoffParagraph);
-    continuationBodyBlocks.push(signoffBlock.block);
+    signoffBlock = buildSignoffBlock(formState, signoffParagraph);
     exportWarnings.push(...signoffBlock.warnings);
   }
 
   const uniqueWarnings = [...new Set(exportWarnings)];
+  const pages: ComposedLetterDocument['pages'] = [
+    {
+      id: 'page-1',
+      kind: 'first_page',
+      headerBlock: buildFirstPageHeader(),
+      bodyBlocks: firstPageBodyBlocks,
+      footerBlock: buildFirstPageFooter()
+    }
+  ];
+
+  const continuationChunks: LetterDocumentBodyBlock[][] = [];
+  const chunkSize = 4;
+
+  for (let index = 0; index < continuationParagraphBlocks.length; index += chunkSize) {
+    continuationChunks.push(continuationParagraphBlocks.slice(index, index + chunkSize));
+  }
+
+  if (continuationChunks.length === 0 && signoffBlock) {
+    continuationChunks.push([]);
+  }
+
+  continuationChunks.forEach((chunk, index) => {
+    const isLastContinuationPage = index === continuationChunks.length - 1;
+    const bodyBlocks = [...chunk];
+
+    if (isLastContinuationPage && signoffBlock) {
+      bodyBlocks.push(signoffBlock.block);
+    }
+
+    pages.push({
+      id: `page-${index + 2}`,
+      kind: 'continuation_page',
+      headerBlock: buildContinuationHeader(formState),
+      bodyBlocks,
+      footerBlock: buildContinuationFooter(isLastContinuationPage ? result.archivePath : undefined)
+    });
+  });
 
   return {
-    pages: [
-      {
-        id: 'page-1',
-        kind: 'first_page',
-        headerBlock: buildFirstPageHeader(),
-        bodyBlocks: firstPageBodyBlocks,
-        footerBlock: buildFirstPageFooter()
-      },
-      {
-        id: 'page-2',
-        kind: 'continuation_page',
-        headerBlock: buildContinuationHeader(formState, 2, 2),
-        bodyBlocks: continuationBodyBlocks,
-        footerBlock: buildContinuationFooter()
-      }
-    ],
+    pages,
     filename: result.filename,
     archivePath: result.archivePath,
     visibleSections: result.visibleSections,
@@ -311,6 +329,7 @@ export function composeLetterDocument(formState: FormState, result: GenerationRe
     clauseRefsUsed: result.clauseRefsUsed,
     ruleRefsUsed: result.ruleRefsUsed,
     exportWarnings: uniqueWarnings,
-    readiness: collectReadinessLabel(result.reviewFlags.length, uniqueWarnings.length)
+    validationIssues,
+    readiness: collectReadinessLabel(validationIssues.length, result.reviewFlags.length)
   };
 }

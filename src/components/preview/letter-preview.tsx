@@ -124,9 +124,7 @@ function SignoffBlockView({ block }: { block: SignoffBlock }) {
           <p className="signoff-block__value">{line.value}</p>
         </div>
       ))}
-      <p className="signoff-block__supporting">{block.engineerMemberNumberLine}</p>
-      <p className="signoff-block__supporting">{block.stampPlaceholderLine}</p>
-      <p className="signoff-block__supporting">{block.permitToPracticeLine}</p>
+      {block.engineerMemberNumberLine ? <p className="signoff-block__supporting">{block.engineerMemberNumberLine}</p> : null}
     </section>
   );
 }
@@ -134,6 +132,7 @@ function SignoffBlockView({ block }: { block: SignoffBlock }) {
 function FooterBlockView({ block }: { block: FooterBlock }) {
   return (
     <footer className="letter-footer">
+      {block.archivePathLine ? <p className="letter-footer__archive">{block.archivePathLine}</p> : null}
       {block.offices?.length ? (
         <div className="letter-footer__offices">
           {block.offices.map((office) => (
@@ -144,7 +143,6 @@ function FooterBlockView({ block }: { block: FooterBlock }) {
           ))}
         </div>
       ) : null}
-      {block.archivePathLine ? <p className="letter-footer__archive">{block.archivePathLine}</p> : null}
     </footer>
   );
 }
@@ -228,13 +226,17 @@ export function LetterPreview() {
   const readinessSummary =
     documentModel.readiness.status === 'ready'
       ? 'Ready for DOCX export'
-      : documentModel.readiness.status === 'warning'
-        ? 'DOCX export is available with supporting notes'
+      : documentModel.readiness.status === 'blocked'
+        ? 'Export is blocked until required fields are completed'
         : 'Review items remain before issue';
   const reviewSummary =
     documentModel.reviewFlags.length === 0
       ? 'No items are currently flagged for analyst review.'
       : `${documentModel.reviewFlags.length} item${documentModel.reviewFlags.length === 1 ? ' requires' : ' require'} analyst review before issue.`;
+  const validationSummary =
+    documentModel.validationIssues.length === 0
+      ? 'No blocking draft issues are currently present.'
+      : `${documentModel.validationIssues.length} blocking issue${documentModel.validationIssues.length === 1 ? ' is' : 's are'} preventing export.`;
 
   useEffect(() => {
     setDraftState(loadDraftState());
@@ -254,7 +256,12 @@ export function LetterPreview() {
       });
 
       if (!response.ok) {
-        setExportMessage('Export failed. Please review the current draft warnings and try again.');
+        try {
+          const payload = (await response.json()) as { message?: string };
+          setExportMessage(payload.message ?? 'Export failed. Please review the current draft warnings and try again.');
+        } catch {
+          setExportMessage('Export failed. Please review the current draft warnings and try again.');
+        }
         return;
       }
 
@@ -295,12 +302,16 @@ export function LetterPreview() {
             <span>Review status</span>
             <strong>{reviewSummary}</strong>
           </div>
+          <div className="summary-item">
+            <span>Blocking issues</span>
+            <strong>{validationSummary}</strong>
+          </div>
         </div>
         <div className="button-row">
           <Link className="button secondary" href="/form">
             Back to form
           </Link>
-          <button type="button" onClick={requestExport} disabled={isExporting}>
+          <button type="button" onClick={requestExport} disabled={isExporting || documentModel.readiness.status === 'blocked'}>
             {isExporting ? 'Generating DOCX...' : 'Download DOCX'}
           </button>
         </div>
@@ -309,6 +320,27 @@ export function LetterPreview() {
             <strong>{exportMessage}</strong>
           </div>
         ) : null}
+      </section>
+
+      <section className="preview-card">
+        <div className="section-heading">
+          <p className="muted">Readiness panel</p>
+          <h2>Blocking issues</h2>
+          <p className="section-intro">Preview can continue, but export stays blocked until these active draft issues are resolved.</p>
+        </div>
+        {documentModel.validationIssues.length === 0 ? (
+          <div className="note">
+            <strong>No blocking issues are currently preventing export.</strong>
+          </div>
+        ) : (
+          documentModel.validationIssues.map((issue) => (
+            <div key={issue.id} className="flag">
+              <strong>{issue.title}</strong>
+              <p>{issue.message}</p>
+              {issue.fieldPath ? <p className="mono">Field: {issue.fieldPath}</p> : null}
+            </div>
+          ))
+        )}
       </section>
 
       <section className="preview-card">
@@ -361,7 +393,7 @@ export function LetterPreview() {
         </div>
         {documentModel.exportWarnings.length > 0 ? (
           <div className="note">
-            <strong>DOCX notes</strong>
+            <strong>Internal signoff and asset notes</strong>
             {documentModel.exportWarnings.map((warning) => (
               <p key={warning}>{warning}</p>
             ))}

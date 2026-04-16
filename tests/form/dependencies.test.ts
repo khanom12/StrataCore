@@ -89,6 +89,24 @@ describe('form dependency model', () => {
     expect(elevatedNormalized.reportBody.garage.slabOrganics).toBe(true);
   });
 
+  it('uses the walkout toggle to govern the extra rear-removal child field', () => {
+    const formState = cloneFormState(genericHappyPath);
+    formState.reportBody.excavation.walkoutBasement = false;
+    formState.reportBody.excavation.walkoutExtraRearRemovalM = 1.2;
+
+    const noneNormalized = normalizeDependentFormState(formState);
+
+    expect(getFormInputVisibility(noneNormalized).reportBody.excavation.showWalkoutExtraRearRemovalM).toBe(false);
+    expect(noneNormalized.reportBody.excavation.walkoutExtraRearRemovalM).toBeUndefined();
+
+    formState.reportBody.excavation.walkoutBasement = true;
+    formState.reportBody.excavation.walkoutExtraRearRemovalM = 1.2;
+    const walkoutNormalized = normalizeDependentFormState(formState);
+
+    expect(getFormInputVisibility(walkoutNormalized).reportBody.excavation.showWalkoutExtraRearRemovalM).toBe(true);
+    expect(walkoutNormalized.reportBody.excavation.walkoutExtraRearRemovalM).toBe(1.2);
+  });
+
   it('hides and clears the sulphate class when the sulphate paragraph is disabled', () => {
     const formState = cloneFormState(genericHappyPath);
     formState.reportBody.sulphate.includeParagraph = false;

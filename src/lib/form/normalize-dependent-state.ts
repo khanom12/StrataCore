@@ -49,6 +49,9 @@ export function normalizeDependentFormState(formState: FormState): FormState {
   const normalizedExcavation = {
     ...formState.reportBody.excavation,
     trenchLocation: visibility.reportBody.excavation.showTrenchLocation ? formState.reportBody.excavation.trenchLocation : undefined,
+    walkoutExtraRearRemovalM: visibility.reportBody.excavation.showWalkoutExtraRearRemovalM
+      ? formState.reportBody.excavation.walkoutExtraRearRemovalM
+      : undefined,
     waterObservedDepthBelowFootingM: visibility.reportBody.excavation.showWaterIssueDepth
       ? formState.reportBody.excavation.waterObservedDepthBelowFootingM
       : undefined

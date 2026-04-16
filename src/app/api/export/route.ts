@@ -15,6 +15,17 @@ export async function POST(request: Request) {
   const formState = normalizeStoredDraftState(payload);
   const generationResult = generateLetter(formState);
   const documentModel = composeLetterDocument(formState, generationResult);
+
+  if (documentModel.readiness.status === 'blocked') {
+    return Response.json(
+      {
+        message: 'Export blocked until the current draft issues are resolved.',
+        validationIssues: documentModel.validationIssues
+      },
+      { status: 422 }
+    );
+  }
+
   const docx = await buildDocx(documentModel);
   const bodyBytes = Uint8Array.from(docx.buffer);
   const blob = new Blob([bodyBytes], { type: docx.contentType });

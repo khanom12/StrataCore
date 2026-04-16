@@ -44,13 +44,23 @@ export interface ReviewFlag {
   ruleRefs: RuleRef[];
 }
 
+export interface ValidationIssue {
+  id: string;
+  title: string;
+  message: string;
+  fieldPath?: string;
+}
+
 export type LegalDescriptionMode = 'single' | 'custom';
+export type SubjectLineFamily = 'singular' | 'plural';
+export type ClientReferenceLabelFamily = 'client_job_no' | 'job_hash';
 
 export interface TopBlockInputs {
   letterDate: string;
   fileNumber: string;
   clientName: string;
   clientMailingAddress: string[];
+  subjectLineFamily: SubjectLineFamily;
   headingSuffix?: string;
   includeLegalDescription: boolean;
   legalDescriptionMode: LegalDescriptionMode;
@@ -60,6 +70,7 @@ export interface TopBlockInputs {
   customLegalDescriptionLines?: string[];
   streetAddress: string;
   includeClientJobNumber: boolean;
+  clientReferenceLabelFamily: ClientReferenceLabelFamily;
   clientJobNumber?: string;
   includeSubdivision: boolean;
   subdivision?: string;
@@ -95,6 +106,7 @@ export type LooseMaterialMode = 'none' | 'noted_only' | 'standard_cleanup' | 'th
 export interface ExcavationInputs {
   houseFootingCutDepthsM: HouseFootingCutDepthsM;
   walkoutBasement?: boolean;
+  walkoutExtraRearRemovalM?: number;
   asConstructedMode?: AsConstructedMode;
   constructionStage?: ConstructionStage;
   siteHistory?: SiteHistory;
@@ -182,7 +194,7 @@ export interface SoilInputs {
 }
 
 export type FootingBasis = 'standard' | 'modified';
-export type SpreadFootingFamily = 'omit' | 'default_140_kpa' | 'review_100_kpa';
+export type SpreadFootingFamily = 'omit' | 'default_140_kpa' | 'default_120_kpa' | 'review_100_kpa';
 export type DrainageUpgradeVariant = 'none' | 'washed_rock_interior_exterior_two_laterals';
 
 export interface RecommendationInputs {

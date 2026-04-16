@@ -17,7 +17,7 @@ export interface ResolvedSignoffProfile {
 export interface PermitToPracticeAsset {
   key: string;
   label: string;
-  placeholderText: string;
+  statusText: string;
   assetPath?: string;
 }
 

@@ -86,8 +86,8 @@ function buildHeader(block: HeaderBlock) {
       children: block.lines.map((line, index) =>
         buildParagraph({
           spacing: { after: index === block.lines.length - 1 ? 80 : 20 },
-          tabStops: RIGHT_TAB_STOP,
-          children: [buildRun(line, { size: BODY_SIZE })]
+          tabStops: line.includes('\t') ? RIGHT_TAB_STOP : undefined,
+          children: [buildRun(line, { size: BODY_SIZE, bold: index === 1 })]
         })
       )
     });
@@ -108,6 +108,16 @@ function buildHeader(block: HeaderBlock) {
 function buildFooter(block: FooterBlock) {
   const children: Paragraph[] = [];
 
+  if (block.archivePathLine) {
+    children.push(
+      buildSimpleParagraph(block.archivePathLine, {
+        alignment: AlignmentType.CENTER,
+        size: FOOTER_SIZE,
+        after: 90
+      })
+    );
+  }
+
   if (block.offices?.length) {
     for (const office of block.offices) {
       children.push(
@@ -119,16 +129,6 @@ function buildFooter(block: FooterBlock) {
         })
       );
     }
-  }
-
-  if (block.archivePathLine) {
-    children.push(
-      buildSimpleParagraph(block.archivePathLine, {
-        alignment: AlignmentType.CENTER,
-        size: FOOTER_SIZE,
-        after: 0
-      })
-    );
   }
 
   return new Footer({ children });
@@ -199,10 +199,10 @@ function buildBodyParagraph(block: ParagraphBlock) {
 function buildSignoffParagraphs(block: SignoffBlock): Paragraph[] {
   const paragraphs: Paragraph[] = [
     buildSimpleParagraph(block.salutationLine, {
-      after: 120
+      after: 140
     }),
     buildSimpleParagraph(block.organization, {
-      after: 180
+      after: 220
     })
   ];
 
@@ -214,15 +214,16 @@ function buildSignoffParagraphs(block: SignoffBlock): Paragraph[] {
     );
     paragraphs.push(
       buildSimpleParagraph(line.value, {
-        after: 110,
+        after: 130,
         indent: { left: 180 }
       })
     );
   }
 
-  paragraphs.push(buildSimpleParagraph(block.engineerMemberNumberLine, { after: 70 }));
-  paragraphs.push(buildSimpleParagraph(block.stampPlaceholderLine, { after: 70 }));
-  paragraphs.push(buildSimpleParagraph(block.permitToPracticeLine, { after: 0 }));
+  if (block.engineerMemberNumberLine) {
+    paragraphs.push(buildSimpleParagraph(block.engineerMemberNumberLine, { after: 0 }));
+  }
+
   return paragraphs;
 }
 

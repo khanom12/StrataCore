@@ -257,6 +257,11 @@ button:disabled {
   border-color: rgba(120, 92, 54, 0.2);
 }
 
+.status-banner--blocked {
+  background: rgba(239, 219, 214, 0.64);
+  border-color: rgba(154, 78, 61, 0.24);
+}
+
 .page-shell {
   border: 1px solid rgba(63, 51, 36, 0.14);
   border-radius: 14px;
@@ -572,7 +577,7 @@ textarea {
 }
 
 .letter-footer__archive {
-  margin-top: 12px;
+  margin: 0 0 12px;
   text-align: center;
   font-size: 0.92rem;
 }

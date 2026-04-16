@@ -119,6 +119,42 @@ describe('generateLetter', () => {
     expect(p4Text).toContain('would then be considered adequate');
   });
 
+  it('supports the as-constructed forms-placed family with the 120 kPa option and derived garage adequacy', () => {
+    const formState = cloneFormState(genericHappyPath);
+    formState.topBlock.includeClientJobNumber = true;
+    formState.topBlock.clientReferenceLabelFamily = 'job_hash';
+    formState.topBlock.clientJobNumber = 'CBR-6223';
+    formState.reportBody.excavation.asConstructedMode = 'poured_18in';
+    formState.reportBody.recommendation.spreadFootingFamily = 'default_120_kpa';
+    formState.reportBody.garage.mode = 'same_elevation';
+
+    const result = generateLetter(formState);
+    const topBlockText = result.paragraphs.find((paragraph) => paragraph.sectionId === 'TOP_BLOCK')?.text ?? '';
+    const p2Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P2')?.text ?? '';
+    const p4Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P4')?.text ?? '';
+    const p5Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P5')?.text ?? '';
+
+    expect(topBlockText).toContain('Job# CBR-6223');
+    expect(p2Text).toContain('strip footing forms');
+    expect(p4Text).toContain('as placed, was considered adequate');
+    expect(p4Text).toContain('120 kilopascals');
+    expect(p5Text).toContain('as placed, was also considered adequate');
+  });
+
+  it('uses the walkout rear-removal wording and keeps the combined garage family review-sensitive', () => {
+    const formState = cloneFormState(genericHappyPath);
+    formState.reportBody.excavation.walkoutBasement = true;
+    formState.reportBody.excavation.walkoutExtraRearRemovalM = 1.2;
+    formState.reportBody.garage.mode = 'same_elevation';
+
+    const result = generateLetter(formState);
+    const p2Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P2')?.text ?? '';
+
+    expect(p2Text).toContain('An extra 1.2 m of material was removed');
+    expect(p2Text).toContain('garage footing areas');
+    expect(result.reviewFlags.some((flag) => flag.id === 'review-walkout-garage-ordering')).toBe(true);
+  });
+
   it('uses conditional signoff wording and the registry-backed Scott member number', () => {
     const formState = cloneFormState(genericHappyPath);
     formState.signoff.preparedBy = '';

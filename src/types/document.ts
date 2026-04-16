@@ -1,7 +1,7 @@
-import type { ClauseRef, ReviewFlag, RuleRef, SectionId } from '@/types/domain';
+import type { ClauseRef, ReviewFlag, RuleRef, SectionId, ValidationIssue } from '@/types/domain';
 
 export type DocumentPageKind = 'first_page' | 'continuation_page';
-export type DocumentReadinessStatus = 'ready' | 'warning' | 'review_required';
+export type DocumentReadinessStatus = 'ready' | 'review_required' | 'blocked';
 export type DocumentAlignment = 'left' | 'center' | 'right';
 export type HeaderBlockRole = 'first_page_identity' | 'continuation_subject';
 export type MetadataBlockRole = 'office_address' | 'date_file' | 'client_address' | 're_block';
@@ -66,9 +66,7 @@ export interface SignoffBlock extends DocumentBlockBase {
     label: string;
     value: string;
   }>;
-  engineerMemberNumberLine: string;
-  stampPlaceholderLine: string;
-  permitToPracticeLine: string;
+  engineerMemberNumberLine?: string;
   sectionId: 'SIGNOFF';
   clauseRefs: ClauseRef[];
   ruleRefs: RuleRef[];
@@ -118,6 +116,7 @@ export interface ComposedLetterDocument {
   clauseRefsUsed: ClauseRef[];
   ruleRefsUsed: RuleRef[];
   exportWarnings: string[];
+  validationIssues: ValidationIssue[];
   readiness: {
     status: DocumentReadinessStatus;
     label: string;

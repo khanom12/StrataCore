@@ -4,6 +4,7 @@ import reportSkeleton from '../../../seed/report_skeleton.json';
 import reviewLog from '../../../seed/review_log.json';
 import v1ScopeLock from '../../../seed/v1_scope_lock.json';
 
+import { supplementalSeedClauses, supplementalSeedRules } from '@/lib/seed/letter-surfaces';
 import type { ClauseRef, RuleRef, SectionId } from '@/types/domain';
 
 interface ClauseRow {
@@ -112,22 +113,41 @@ export function normalizeSectionId(seedSection: string): SectionId | undefined {
   return undefined;
 }
 
-const clauseDefinitions = clauseRows.map<SeedClauseDefinition>((row) => ({
-  id: row['Clause ID'],
-  title: row['Raw Title / Name'],
-  text: row['Clause Text (source excerpt)'],
-  decisionRuleIds: extractIds(row['Decision table ref(s)'], /DT_\d+/g),
-  v1Handling: row['V1 Handling']
+const clauseDefinitions = [
+  ...clauseRows.map<SeedClauseDefinition>((row) => ({
+    id: row['Clause ID'],
+    title: row['Raw Title / Name'],
+    text: row['Clause Text (source excerpt)'],
+    decisionRuleIds: extractIds(row['Decision table ref(s)'], /DT_\d+/g),
+    v1Handling: row['V1 Handling']
+  })),
+  ...supplementalSeedClauses
+].map<SeedClauseDefinition>((definition) => ({
+  id: definition.id,
+  title: definition.title,
+  text: definition.text,
+  decisionRuleIds: definition.decisionRuleIds,
+  v1Handling: definition.v1Handling
 }));
 
-const ruleDefinitions = ruleRows.map<SeedRuleDefinition>((row) => ({
-  id: row['Rule ID'],
-  sectionId: normalizeSectionId(row.Section),
-  seedSection: row.Section,
-  output: row['Output / result'],
-  primaryClauseIds: extractIds(row['Primary clause ID(s)'], /(CL_\d+|META_\d+|SIG_\d+|P[1-8])/g),
-  support: row['V1 Support'] ?? 'AUTO'
-}));
+const ruleDefinitions = [
+  ...ruleRows.map<SeedRuleDefinition>((row) => ({
+    id: row['Rule ID'],
+    sectionId: normalizeSectionId(row.Section),
+    seedSection: row.Section,
+    output: row['Output / result'],
+    primaryClauseIds: extractIds(row['Primary clause ID(s)'], /(CL_\d+|META_\d+|SIG_\d+|P[1-8]|FMT_\d+)/g),
+    support: row['V1 Support'] ?? 'AUTO'
+  })),
+  ...supplementalSeedRules.map<SeedRuleDefinition>((row) => ({
+    id: row.id,
+    sectionId: normalizeSectionId(row.sectionId ?? row.seedSection),
+    seedSection: row.seedSection,
+    output: row.output,
+    primaryClauseIds: row.primaryClauseIds,
+    support: row.support
+  }))
+];
 
 const reviewDecisions = reviewDecisionRows.map<SeedReviewDecision>((row) => ({
   id: row['Decision ID'],

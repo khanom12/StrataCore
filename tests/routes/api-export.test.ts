@@ -2,6 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import { POST } from '@/app/api/export/route';
 import { victoryHomes2026IssuedExample } from '@/lib/reference-cases/victory-homes-2026';
+import type { FormState } from '@/types/domain';
+
+function cloneFormState(formState: FormState): FormState {
+  return JSON.parse(JSON.stringify(formState)) as FormState;
+}
 
 describe('/api/export', () => {
   it('returns a downloadable DOCX response with the computed filename', async () => {
@@ -25,5 +30,31 @@ describe('/api/export', () => {
     expect(bytes.byteLength).toBeGreaterThan(100);
     expect(bytes[0]).toBe(0x50);
     expect(bytes[1]).toBe(0x4b);
+  });
+
+  it('blocks DOCX export when active draft validation issues remain', async () => {
+    const formState = cloneFormState(victoryHomes2026IssuedExample);
+    formState.reportBody.excavation.walkoutBasement = true;
+    formState.reportBody.excavation.walkoutExtraRearRemovalM = undefined;
+
+    const response = await POST(
+      new Request('http://localhost/api/export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formState)
+      })
+    );
+
+    expect(response.status).toBe(422);
+
+    const payload = (await response.json()) as {
+      message: string;
+      validationIssues: Array<{ id: string }>;
+    };
+
+    expect(payload.message).toContain('Export blocked');
+    expect(payload.validationIssues.some((issue) => issue.id === 'walkout-extra-rear-removal')).toBe(true);
   });
 });
