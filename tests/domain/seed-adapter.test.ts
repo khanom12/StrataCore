@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getClauseDefinition,
+  getRuleOutput,
   getReportSectionDefinition,
   getRuleDefinition,
   getSeedSummary,
@@ -24,6 +25,7 @@ describe('seed adapter layer', () => {
     });
     expect(toRuleRef('DT_010').id).toBe('DT_010');
     expect(toRuleRef('DT_010').title).toContain('Insert the standard intro');
+    expect(getRuleOutput('DT_010')).toContain('Insert the standard intro');
   });
 
   it('maps seed section labels to the normalized V1 section ids', () => {
@@ -40,4 +42,3 @@ describe('seed adapter layer', () => {
     expect(summary.reviewDecisionCount).toBeGreaterThan(0);
   });
 });
-

@@ -7,37 +7,29 @@ export const defaultFormState: FormState = {
     clientName: 'VICTORY HOMES LTD.',
     clientMailingAddress: ['1665 - 91 Street SW', 'Edmonton, Alberta', 'T6X 0W8'],
     headingSuffix: '',
-    legalDescription: {
-      include: true,
-      lot: '110',
-      block: '17',
-      plan: '252 2250'
-    },
+    includeLegalDescription: true,
+    lot: '110',
+    block: '17',
+    plan: '252 2250',
     streetAddress: '607 - 30 Street SW',
-    clientJobNumber: {
-      include: false,
-      value: ''
-    },
-    subdivision: {
-      include: true,
-      value: 'Alces Subdivision'
-    },
+    includeClientJobNumber: false,
+    clientJobNumber: '',
+    includeSubdivision: true,
+    subdivision: 'Alces Subdivision',
     municipality: 'Edmonton, Alberta'
   },
   archive: {
     hNumber: 'h38566'
   },
   reportBody: {
+    inspectionDate: '2026-01-28',
     excavation: {
-      inspectionDate: '2026-01-28',
       houseFootingCutDepthsM: {
         frontLeftM: 1.7,
         frontRightM: 1.8,
         rearLeftM: 1.8,
         rearRightM: 1.9
       },
-      garageMode: 'same_elevation',
-      garageOffsetAboveHouseM: 0.7,
       walkoutBasement: false,
       gardenSuiteMode: false,
       asConstructedMode: 'none',
@@ -62,16 +54,20 @@ export const defaultFormState: FormState = {
       traceFeatures: ['oxides'],
       highPlasticWarning: false
     },
-    recommendations: {
+    recommendation: {
       footingBasis: 'standard',
-      spreadFootingFamily: 'default_140_kpa',
-      garageSlabOrganics: false
+      spreadFootingFamily: 'default_140_kpa'
+    },
+    garage: {
+      mode: 'same_elevation',
+      offsetAboveHouseM: 0.7,
+      slabOrganics: false
     },
     sulphate: {
       includeParagraph: false,
       sulphateClass: 'negligible'
     },
-    winterConstruction: {
+    winter: {
       includeParagraph: true
     }
   },

@@ -13,7 +13,7 @@ describe('generateLetter', () => {
     const formState = cloneFormState();
     const result = generateLetter(formState);
 
-    expect(result.visibleSectionIds).toEqual([
+    expect(result.visibleSections).toEqual([
       'TOP_BLOCK',
       'P1',
       'P2',
@@ -24,14 +24,14 @@ describe('generateLetter', () => {
       'CLOSING',
       'SIGNOFF'
     ]);
-    expect(result.orderedParagraphs.map((paragraph) => paragraph.order)).toEqual([10, 20, 30, 40, 50, 60, 80, 90, 100]);
-    expect(result.orderedParagraphs.find((paragraph) => paragraph.sectionId === 'P1')?.text).toContain(
+    expect(result.paragraphs.map((paragraph) => paragraph.order)).toEqual([10, 20, 30, 40, 50, 60, 80, 90, 100]);
+    expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P1')?.text).toContain(
       'has conducted an inspection of the above noted excavation'
     );
-    expect(result.orderedParagraphs.find((paragraph) => paragraph.sectionId === 'P5')?.text).toContain(
+    expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P5')?.text).toContain(
       'standard footing foundation for the attached garage'
     );
-    expect(result.orderedParagraphs.find((paragraph) => paragraph.sectionId === 'P6')).toBeUndefined();
+    expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P6')).toBeUndefined();
     expect(result.filename).toContain('h38566');
     expect(result.archivePath).toContain('H:/2026/Housing/VICTORY HOMES LTD.');
     expect(result.clauseRefsUsed.some((ref) => ref.id === 'CL_000')).toBe(true);
@@ -40,7 +40,7 @@ describe('generateLetter', () => {
 
   it('omits the garage paragraph when no garage exists and inserts the sulphate paragraph when requested', () => {
     const formState = cloneFormState();
-    formState.reportBody.excavation.garageMode = 'none';
+    formState.reportBody.garage.mode = 'none';
     formState.reportBody.sulphate = {
       includeParagraph: true,
       sulphateClass: 'moderate'
@@ -48,8 +48,8 @@ describe('generateLetter', () => {
 
     const result = generateLetter(formState);
 
-    expect(result.visibleSectionIds).not.toContain('P5');
-    expect(result.orderedParagraphs.find((paragraph) => paragraph.sectionId === 'P6')?.text).toContain(
+    expect(result.visibleSections).not.toContain('P5');
+    expect(result.paragraphs.find((paragraph) => paragraph.sectionId === 'P6')?.text).toContain(
       'moderate concentration of sulphates'
     );
   });
@@ -57,7 +57,7 @@ describe('generateLetter', () => {
   it('attaches typed review flags to related sections instead of silently resolving ambiguous branches', () => {
     const formState = cloneFormState();
     formState.reportBody.soil.primarySoilOrigin = 'engineered_fill_unknown';
-    formState.reportBody.recommendations.spreadFootingFamily = 'review_100_kpa';
+    formState.reportBody.recommendation.spreadFootingFamily = 'review_100_kpa';
 
     const result = generateLetter(formState);
     const soilFlag = result.reviewFlags.find((flag) => flag.id === 'review-engineered-fill-unknown');
@@ -74,11 +74,25 @@ describe('generateLetter', () => {
   it('keeps the hidden H number out of visible letter paragraphs while using it in filename and archive path', () => {
     const formState = cloneFormState();
     const result = generateLetter(formState);
-    const visibleBody = result.orderedParagraphs.map((paragraph) => paragraph.text).join('\n');
+    const visibleBody = result.paragraphs.map((paragraph) => paragraph.text).join('\n');
 
     expect(visibleBody).not.toContain('h38566');
     expect(result.filename).toContain('h38566');
     expect(result.archivePath).toContain('h38566');
   });
-});
 
+  it('derives the P2 cut range from the four recorded corner cut values', () => {
+    const formState = cloneFormState();
+    formState.reportBody.excavation.houseFootingCutDepthsM = {
+      frontLeftM: 1.2,
+      frontRightM: 1.4,
+      rearLeftM: 2.0,
+      rearRightM: 1.7
+    };
+
+    const result = generateLetter(formState);
+    const p2Text = result.paragraphs.find((paragraph) => paragraph.sectionId === 'P2')?.text ?? '';
+
+    expect(p2Text).toContain('1.2 to 2.0 m below the adjacent ground surface');
+  });
+});

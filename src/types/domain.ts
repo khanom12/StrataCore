@@ -25,9 +25,9 @@ export interface RuleRef {
 export interface GeneratedParagraph {
   id: string;
   sectionId: SectionId;
+  title: string;
   text: string;
   order: number;
-  label?: string;
   clauseRefs: ClauseRef[];
   ruleRefs: RuleRef[];
   reviewSensitive: boolean;
@@ -43,33 +43,21 @@ export interface ReviewFlag {
   ruleRefs: RuleRef[];
 }
 
-export interface LegalDescriptionInput {
-  include: boolean;
-  lot?: string;
-  block?: string;
-  plan?: string;
-}
-
-export interface ClientJobNumberInput {
-  include: boolean;
-  value?: string;
-}
-
-export interface SubdivisionInput {
-  include: boolean;
-  value?: string;
-}
-
 export interface TopBlockInputs {
   letterDate: string;
   fileNumber: string;
   clientName: string;
   clientMailingAddress: string[];
   headingSuffix?: string;
-  legalDescription: LegalDescriptionInput;
+  includeLegalDescription: boolean;
+  lot?: string;
+  block?: string;
+  plan?: string;
   streetAddress: string;
-  clientJobNumber: ClientJobNumberInput;
-  subdivision: SubdivisionInput;
+  includeClientJobNumber: boolean;
+  clientJobNumber?: string;
+  includeSubdivision: boolean;
+  subdivision?: string;
   municipality: string;
 }
 
@@ -92,10 +80,7 @@ export type TrenchLocation = 'front' | 'front_left' | 'front_right';
 export type RainSoftenedMode = 'none' | 'saturated_soft_surficial' | 'standing_water_rain_softened';
 
 export interface ExcavationInputs {
-  inspectionDate: string;
   houseFootingCutDepthsM: HouseFootingCutDepthsM;
-  garageMode: GarageMode;
-  garageOffsetAboveHouseM?: number;
   walkoutBasement?: boolean;
   gardenSuiteMode?: boolean;
   asConstructedMode?: AsConstructedMode;
@@ -112,6 +97,12 @@ export interface ExcavationInputs {
   snowDepthMm?: number;
   exposedElectricalTrench?: boolean;
   groundHeatingSystem?: boolean;
+}
+
+export interface GarageInputs {
+  mode: GarageMode;
+  offsetAboveHouseM?: number;
+  slabOrganics?: boolean;
 }
 
 export type SoilLayeringMode = 'single_layer' | 'engineered_fill_over_native';
@@ -169,7 +160,6 @@ export type SpreadFootingFamily = 'omit' | 'default_140_kpa' | 'review_100_kpa';
 export interface RecommendationInputs {
   footingBasis: FootingBasis;
   spreadFootingFamily: SpreadFootingFamily;
-  garageSlabOrganics?: boolean;
 }
 
 export type SulphateClass = 'negligible' | 'moderate' | 'severe' | 'very_severe';
@@ -179,16 +169,18 @@ export interface SulphateInputs {
   sulphateClass?: SulphateClass;
 }
 
-export interface WinterConstructionInputs {
+export interface WinterInputs {
   includeParagraph: boolean;
 }
 
 export interface ReportBodyInputs {
+  inspectionDate: string;
   excavation: ExcavationInputs;
   soil: SoilInputs;
-  recommendations: RecommendationInputs;
+  recommendation: RecommendationInputs;
+  garage: GarageInputs;
   sulphate: SulphateInputs;
-  winterConstruction: WinterConstructionInputs;
+  winter: WinterInputs;
 }
 
 export interface SignoffInputs {
@@ -204,8 +196,8 @@ export interface FormState {
 }
 
 export interface GenerationResult {
-  visibleSectionIds: SectionId[];
-  orderedParagraphs: GeneratedParagraph[];
+  paragraphs: GeneratedParagraph[];
+  visibleSections: SectionId[];
   reviewFlags: ReviewFlag[];
   filename: string;
   archivePath: string;

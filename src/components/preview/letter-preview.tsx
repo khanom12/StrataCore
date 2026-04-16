@@ -78,14 +78,14 @@ export function LetterPreview() {
         </section>
       </div>
 
-      <section className="preview-card">
-        <h2>Letter Draft</h2>
-        {result.orderedParagraphs.map((paragraph) => (
+        <section className="preview-card">
+          <h2>Letter Draft</h2>
+          {result.paragraphs.map((paragraph) => (
           <article key={paragraph.id} className="section-card">
             <p className="muted">
               {paragraph.sectionId} {paragraph.reviewSensitive ? '• review-sensitive' : ''}
             </p>
-            <h3>{paragraph.label ?? paragraph.sectionId}</h3>
+            <h3>{paragraph.title}</h3>
             <div className="letter-block">{paragraph.text}</div>
             <div className="trace-list">
               {paragraph.clauseRefs.map((clauseRef) => (
@@ -105,7 +105,7 @@ export function LetterPreview() {
 
       <section className="preview-card">
         <h2>Clause / Rule Trace</h2>
-        <p className="mono">Sections: {result.visibleSectionIds.join(', ')}</p>
+        <p className="mono">Sections: {result.visibleSections.join(', ')}</p>
         <p className="mono">Clauses: {result.clauseRefsUsed.map((ref) => ref.id).join(', ')}</p>
         <p className="mono">Rules: {result.ruleRefsUsed.map((ref) => ref.id).join(', ')}</p>
       </section>

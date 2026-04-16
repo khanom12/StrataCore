@@ -32,6 +32,10 @@ export function InspectionForm() {
     updateState((current) => ({ ...current, archive: { ...current.archive, [key]: value } }));
   }
 
+  function updateReportBody<K extends keyof FormState['reportBody']>(key: K, value: FormState['reportBody'][K]) {
+    updateState((current) => ({ ...current, reportBody: { ...current.reportBody, [key]: value } }));
+  }
+
   function updateExcavation<K extends keyof FormState['reportBody']['excavation']>(
     key: K,
     value: FormState['reportBody']['excavation'][K]
@@ -55,15 +59,25 @@ export function InspectionForm() {
     }));
   }
 
-  function updateRecommendations<K extends keyof FormState['reportBody']['recommendations']>(
+  function updateRecommendation<K extends keyof FormState['reportBody']['recommendation']>(
     key: K,
-    value: FormState['reportBody']['recommendations'][K]
+    value: FormState['reportBody']['recommendation'][K]
   ) {
     updateState((current) => ({
       ...current,
       reportBody: {
         ...current.reportBody,
-        recommendations: { ...current.reportBody.recommendations, [key]: value }
+        recommendation: { ...current.reportBody.recommendation, [key]: value }
+      }
+    }));
+  }
+
+  function updateGarage<K extends keyof FormState['reportBody']['garage']>(key: K, value: FormState['reportBody']['garage'][K]) {
+    updateState((current) => ({
+      ...current,
+      reportBody: {
+        ...current.reportBody,
+        garage: { ...current.reportBody.garage, [key]: value }
       }
     }));
   }
@@ -81,12 +95,12 @@ export function InspectionForm() {
     }));
   }
 
-  function updateWinterParagraph(includeParagraph: boolean) {
+  function updateWinter(includeParagraph: boolean) {
     updateState((current) => ({
       ...current,
       reportBody: {
         ...current.reportBody,
-        winterConstruction: { includeParagraph }
+        winter: { includeParagraph }
       }
     }));
   }
@@ -125,9 +139,9 @@ export function InspectionForm() {
     <>
       <section className="panel">
         <p className="note">
-          The normalized V1 form now groups visible top-block metadata, hidden archive metadata, report body
-          inputs, and signoff inputs separately. Corner cut depths are the primary excavation input so later
-          prompts can derive min/max and walkout wording from one source.
+          The V1 form now edits one canonical draft model: visible top-block metadata, hidden archive metadata,
+          report-body inputs, and signoff inputs. House cuts are stored as corner values so generation can derive
+          min and max without keeping a second primary excavation shape.
         </p>
         <div className="button-row">
           <button type="button" onClick={submitDraft}>
@@ -149,19 +163,15 @@ export function InspectionForm() {
           <Field
             label="Inspection date"
             type="date"
-            value={formState.reportBody.excavation.inspectionDate}
-            onChange={(value) => updateExcavation('inspectionDate', value)}
+            value={formState.reportBody.inspectionDate}
+            onChange={(value) => updateReportBody('inspectionDate', value)}
           />
           <Field label="File number" value={formState.topBlock.fileNumber} onChange={(value) => updateTopBlock('fileNumber', value)} />
           <Field label="Client name" value={formState.topBlock.clientName} onChange={(value) => updateTopBlock('clientName', value)} />
           <Field label="Street address" value={formState.topBlock.streetAddress} onChange={(value) => updateTopBlock('streetAddress', value)} />
           <Field label="Heading suffix" value={formState.topBlock.headingSuffix ?? ''} onChange={(value) => updateTopBlock('headingSuffix', value)} />
           <Field label="Municipality" value={formState.topBlock.municipality} onChange={(value) => updateTopBlock('municipality', value)} />
-          <Field
-            label="Subdivision"
-            value={formState.topBlock.subdivision.value ?? ''}
-            onChange={(value) => updateTopBlock('subdivision', { ...formState.topBlock.subdivision, value })}
-          />
+          <Field label="Subdivision" value={formState.topBlock.subdivision ?? ''} onChange={(value) => updateTopBlock('subdivision', value)} />
           <TextAreaField
             className="full"
             label="Client mailing address"
@@ -170,38 +180,26 @@ export function InspectionForm() {
           />
           <CheckboxField
             label="Include legal description"
-            checked={formState.topBlock.legalDescription.include}
-            onChange={(checked) => updateTopBlock('legalDescription', { ...formState.topBlock.legalDescription, include: checked })}
+            checked={formState.topBlock.includeLegalDescription}
+            onChange={(checked) => updateTopBlock('includeLegalDescription', checked)}
           />
           <CheckboxField
             label="Include subdivision"
-            checked={formState.topBlock.subdivision.include}
-            onChange={(checked) => updateTopBlock('subdivision', { ...formState.topBlock.subdivision, include: checked })}
+            checked={formState.topBlock.includeSubdivision}
+            onChange={(checked) => updateTopBlock('includeSubdivision', checked)}
           />
-          <Field
-            label="Lot"
-            value={formState.topBlock.legalDescription.lot ?? ''}
-            onChange={(value) => updateTopBlock('legalDescription', { ...formState.topBlock.legalDescription, lot: value })}
-          />
-          <Field
-            label="Block"
-            value={formState.topBlock.legalDescription.block ?? ''}
-            onChange={(value) => updateTopBlock('legalDescription', { ...formState.topBlock.legalDescription, block: value })}
-          />
-          <Field
-            label="Plan"
-            value={formState.topBlock.legalDescription.plan ?? ''}
-            onChange={(value) => updateTopBlock('legalDescription', { ...formState.topBlock.legalDescription, plan: value })}
-          />
+          <Field label="Lot" value={formState.topBlock.lot ?? ''} onChange={(value) => updateTopBlock('lot', value)} />
+          <Field label="Block" value={formState.topBlock.block ?? ''} onChange={(value) => updateTopBlock('block', value)} />
+          <Field label="Plan" value={formState.topBlock.plan ?? ''} onChange={(value) => updateTopBlock('plan', value)} />
           <CheckboxField
             label="Include client job number"
-            checked={formState.topBlock.clientJobNumber.include}
-            onChange={(checked) => updateTopBlock('clientJobNumber', { ...formState.topBlock.clientJobNumber, include: checked })}
+            checked={formState.topBlock.includeClientJobNumber}
+            onChange={(checked) => updateTopBlock('includeClientJobNumber', checked)}
           />
           <Field
             label="Client job number"
-            value={formState.topBlock.clientJobNumber.value ?? ''}
-            onChange={(value) => updateTopBlock('clientJobNumber', { ...formState.topBlock.clientJobNumber, value })}
+            value={formState.topBlock.clientJobNumber ?? ''}
+            onChange={(value) => updateTopBlock('clientJobNumber', value)}
           />
         </div>
       </section>
@@ -239,22 +237,6 @@ export function InspectionForm() {
             type="number"
             value={formState.reportBody.excavation.houseFootingCutDepthsM.rearRightM?.toString() ?? ''}
             onChange={(value) => updateCutDepth('rearRightM', value ? Number(value) : undefined)}
-          />
-          <SelectField
-            label="Garage mode"
-            value={formState.reportBody.excavation.garageMode}
-            onChange={(value) => updateExcavation('garageMode', value as FormState['reportBody']['excavation']['garageMode'])}
-            options={[
-              ['none', 'No garage'],
-              ['same_elevation', 'Garage at same elevation'],
-              ['higher_than_house', 'Garage above house excavation']
-            ]}
-          />
-          <Field
-            label="Garage offset above house (m)"
-            type="number"
-            value={formState.reportBody.excavation.garageOffsetAboveHouseM?.toString() ?? ''}
-            onChange={(value) => updateExcavation('garageOffsetAboveHouseM', value ? Number(value) : undefined)}
           />
           <CheckboxField
             label="Rear walkout basement"
@@ -378,12 +360,12 @@ export function InspectionForm() {
       </section>
 
       <section className="section-card">
-        <h2>Recommendation / Sulphate Inputs</h2>
+        <h2>Recommendation / Garage / Sulphate Inputs</h2>
         <div className="field-grid">
           <SelectField
             label="P4 footing basis"
-            value={formState.reportBody.recommendations.footingBasis}
-            onChange={(value) => updateRecommendations('footingBasis', value as FormState['reportBody']['recommendations']['footingBasis'])}
+            value={formState.reportBody.recommendation.footingBasis}
+            onChange={(value) => updateRecommendation('footingBasis', value as FormState['reportBody']['recommendation']['footingBasis'])}
             options={[
               ['standard', 'Standard'],
               ['modified', 'Modified']
@@ -391,9 +373,9 @@ export function InspectionForm() {
           />
           <SelectField
             label="Spread footing family"
-            value={formState.reportBody.recommendations.spreadFootingFamily}
+            value={formState.reportBody.recommendation.spreadFootingFamily}
             onChange={(value) =>
-              updateRecommendations('spreadFootingFamily', value as FormState['reportBody']['recommendations']['spreadFootingFamily'])
+              updateRecommendation('spreadFootingFamily', value as FormState['reportBody']['recommendation']['spreadFootingFamily'])
             }
             options={[
               ['default_140_kpa', '140 kPa working default'],
@@ -401,10 +383,26 @@ export function InspectionForm() {
               ['review_100_kpa', '100 kPa review branch']
             ]}
           />
+          <SelectField
+            label="Garage mode"
+            value={formState.reportBody.garage.mode}
+            onChange={(value) => updateGarage('mode', value as FormState['reportBody']['garage']['mode'])}
+            options={[
+              ['none', 'No garage'],
+              ['same_elevation', 'Garage at same elevation'],
+              ['higher_than_house', 'Garage above house excavation']
+            ]}
+          />
+          <Field
+            label="Garage offset above house (m)"
+            type="number"
+            value={formState.reportBody.garage.offsetAboveHouseM?.toString() ?? ''}
+            onChange={(value) => updateGarage('offsetAboveHouseM', value ? Number(value) : undefined)}
+          />
           <CheckboxField
             label="Garage slab organics advisory"
-            checked={Boolean(formState.reportBody.recommendations.garageSlabOrganics)}
-            onChange={(checked) => updateRecommendations('garageSlabOrganics', checked)}
+            checked={Boolean(formState.reportBody.garage.slabOrganics)}
+            onChange={(checked) => updateGarage('slabOrganics', checked)}
           />
           <CheckboxField
             label="Include sulphate paragraph"
@@ -424,8 +422,8 @@ export function InspectionForm() {
           />
           <CheckboxField
             label="Include winter construction paragraph"
-            checked={formState.reportBody.winterConstruction.includeParagraph}
-            onChange={updateWinterParagraph}
+            checked={formState.reportBody.winter.includeParagraph}
+            onChange={updateWinter}
           />
         </div>
       </section>

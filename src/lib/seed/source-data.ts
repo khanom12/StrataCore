@@ -206,6 +206,11 @@ export function getClauseText(idOrRef: string | ClauseRef): string {
   return getClauseDefinition(id)?.text ?? `[Missing clause text for ${id}]`;
 }
 
+export function getRuleOutput(idOrRef: string | RuleRef): string {
+  const id = typeof idOrRef === 'string' ? idOrRef : idOrRef.id;
+  return getRuleDefinition(id)?.output ?? `[Missing rule output for ${id}]`;
+}
+
 export function uniqueClauseRefs(refs: ClauseRef[]): ClauseRef[] {
   return [...new Map(refs.map((ref) => [ref.id, ref])).values()];
 }

@@ -81,7 +81,7 @@ function collectCutDepthValues(cutDepths: FormState['reportBody']['excavation'][
   return Object.values(cutDepths).filter((value): value is number => value !== undefined && !Number.isNaN(value));
 }
 
-function getOverallCutRange(cutDepths: FormState['reportBody']['excavation']['houseFootingCutDepthsM']) {
+export function deriveHouseCutRange(cutDepths: FormState['reportBody']['excavation']['houseFootingCutDepthsM']) {
   const values = collectCutDepthValues(cutDepths);
 
   if (values.length === 0) {
@@ -97,9 +97,9 @@ function getOverallCutRange(cutDepths: FormState['reportBody']['excavation']['ho
 function createParagraph(input: {
   id: string;
   sectionId: SectionId;
+  title: string;
   text: string;
   order: number;
-  label?: string;
   clauseIds: string[];
   ruleIds: string[];
   reviewSensitive?: boolean;
@@ -107,9 +107,9 @@ function createParagraph(input: {
   return {
     id: input.id,
     sectionId: input.sectionId,
+    title: input.title,
     text: input.text,
     order: input.order,
-    label: input.label,
     clauseRefs: toClauseRefs(input.clauseIds),
     ruleRefs: toRuleRefs(input.ruleIds),
     reviewSensitive: input.reviewSensitive ?? false
@@ -125,17 +125,14 @@ function buildTopBlockParagraph(formState: FormState): GeneratedParagraph {
     ...formState.topBlock.clientMailingAddress,
     '',
     `Re: Foundation Soil Inspection${formState.topBlock.headingSuffix ? ` - ${formState.topBlock.headingSuffix}` : ''}`,
-    formState.topBlock.legalDescription.include &&
-    formState.topBlock.legalDescription.lot &&
-    formState.topBlock.legalDescription.block &&
-    formState.topBlock.legalDescription.plan
-      ? `Lot ${formState.topBlock.legalDescription.lot}, Block ${formState.topBlock.legalDescription.block}, Plan ${formState.topBlock.legalDescription.plan}`
+    formState.topBlock.includeLegalDescription && formState.topBlock.lot && formState.topBlock.block && formState.topBlock.plan
+      ? `Lot ${formState.topBlock.lot}, Block ${formState.topBlock.block}, Plan ${formState.topBlock.plan}`
       : null,
     formState.topBlock.streetAddress,
-    formState.topBlock.clientJobNumber.include && formState.topBlock.clientJobNumber.value
-      ? `Client Job No.: ${formState.topBlock.clientJobNumber.value}`
+    formState.topBlock.includeClientJobNumber && formState.topBlock.clientJobNumber
+      ? `Client Job No.: ${formState.topBlock.clientJobNumber}`
       : null,
-    formState.topBlock.subdivision.include && formState.topBlock.subdivision.value ? formState.topBlock.subdivision.value : null,
+    formState.topBlock.includeSubdivision && formState.topBlock.subdivision ? formState.topBlock.subdivision : null,
     formState.topBlock.municipality
   ]
     .filter((value): value is string => value !== null)
@@ -144,7 +141,7 @@ function buildTopBlockParagraph(formState: FormState): GeneratedParagraph {
   return createParagraph({
     id: 'top-block',
     sectionId: 'TOP_BLOCK',
-    label: 'Top Block',
+    title: 'Top Block',
     text: topBlockLines,
     order: 10,
     clauseIds: ['META_02', 'META_03', 'META_04', 'META_05', 'META_06', 'META_07', 'META_08', 'META_09', 'META_10'],
@@ -156,8 +153,8 @@ function buildP1Paragraph(formState: FormState): GeneratedParagraph {
   return createParagraph({
     id: 'p1',
     sectionId: 'P1',
-    label: 'P1 Intro',
-    text: getClauseText('CL_000').replace('{January 28, 2026}', formatDate(formState.reportBody.excavation.inspectionDate)).trim(),
+    title: 'P1 Intro',
+    text: getClauseText('CL_000').replace('{January 28, 2026}', formatDate(formState.reportBody.inspectionDate)).trim(),
     order: 20,
     clauseIds: ['CL_000'],
     ruleIds: ['DT_010']
@@ -166,7 +163,8 @@ function buildP1Paragraph(formState: FormState): GeneratedParagraph {
 
 function buildP2Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): GeneratedParagraph {
   const excavation = formState.reportBody.excavation;
-  const cutRange = getOverallCutRange(excavation.houseFootingCutDepthsM);
+  const garage = formState.reportBody.garage;
+  const cutRange = deriveHouseCutRange(excavation.houseFootingCutDepthsM);
   const sentences: string[] = ['At the time of inspection, the excavation was at footing grade and was advanced by a backhoe.'];
   const clauseIds = ['P2'];
   const ruleIds = ['DT_020'];
@@ -199,7 +197,7 @@ function buildP2Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
     ruleIds.push('DT_021');
   }
 
-  if (excavation.garageMode === 'same_elevation') {
+  if (garage.mode === 'same_elevation') {
     sentences.push(
       'In addition, the excavation had been extended into the garage footing areas, with the bottom of that excavation at the same elevation as the house excavation floor.'
     );
@@ -207,10 +205,10 @@ function buildP2Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
     ruleIds.push('DT_023');
   }
 
-  if (excavation.garageMode === 'higher_than_house') {
+  if (garage.mode === 'higher_than_house') {
     const offsetText =
-      excavation.garageOffsetAboveHouseM !== undefined
-        ? `at approximately ${formatNumber(excavation.garageOffsetAboveHouseM)} m above the house excavation level`
+      garage.offsetAboveHouseM !== undefined
+        ? `at approximately ${formatNumber(garage.offsetAboveHouseM)} m above the house excavation level`
         : 'above the house excavation level';
 
     sentences.push(`In addition, an excavation had also been made in the garage footing area, with the excavation floor noted ${offsetText}.`);
@@ -221,7 +219,7 @@ function buildP2Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
   return createParagraph({
     id: 'p2',
     sectionId: 'P2',
-    label: 'P2 Excavation Conditions',
+    title: 'P2 Excavation Conditions',
     text: sentences.join(' '),
     order: 30,
     clauseIds,
@@ -318,7 +316,7 @@ function buildP3Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
   return createParagraph({
     id: 'p3',
     sectionId: 'P3',
-    label: 'P3 Soil Conditions',
+    title: 'P3 Soil Conditions',
     text: sentences.join(' '),
     order: 40,
     clauseIds,
@@ -328,12 +326,12 @@ function buildP3Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
 }
 
 function buildP4Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): GeneratedParagraph {
-  const recommendations = formState.reportBody.recommendations;
+  const recommendation = formState.reportBody.recommendation;
   const clauseIds: string[] = [];
   const ruleIds: string[] = [];
   const sentences: string[] = [];
 
-  if (recommendations.footingBasis === 'modified') {
+  if (recommendation.footingBasis === 'modified') {
     sentences.push(getClauseText('CL_003'));
     clauseIds.push('CL_003');
     ruleIds.push('DT_071');
@@ -355,7 +353,7 @@ function buildP4Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
     ruleIds.push('DT_070');
   }
 
-  if (recommendations.spreadFootingFamily === 'default_140_kpa') {
+  if (recommendation.spreadFootingFamily === 'default_140_kpa') {
     sentences.push(getClauseText('CL_045'));
     clauseIds.push('CL_045');
     ruleIds.push('DT_075');
@@ -373,7 +371,7 @@ function buildP4Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
     );
   }
 
-  if (recommendations.spreadFootingFamily === 'review_100_kpa') {
+  if (recommendation.spreadFootingFamily === 'review_100_kpa') {
     sentences.push(getClauseText('CL_046'));
     clauseIds.push('CL_046');
     ruleIds.push('DT_076');
@@ -392,7 +390,7 @@ function buildP4Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
   return createParagraph({
     id: 'p4',
     sectionId: 'P4',
-    label: 'P4 House Footing Recommendation',
+    title: 'P4 House Footing Recommendation',
     text: sentences.join(' '),
     order: 50,
     clauseIds,
@@ -402,10 +400,10 @@ function buildP4Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
 }
 
 function buildP5Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): GeneratedParagraph | null {
-  const excavation = formState.reportBody.excavation;
-  const recommendations = formState.reportBody.recommendations;
+  const garage = formState.reportBody.garage;
+  const recommendation = formState.reportBody.recommendation;
 
-  if (excavation.garageMode === 'none') {
+  if (garage.mode === 'none') {
     return null;
   }
 
@@ -413,7 +411,7 @@ function buildP5Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
   const ruleIds: string[] = ['DT_095'];
   const sentences: string[] = [];
 
-  if (recommendations.footingBasis === 'modified') {
+  if (recommendation.footingBasis === 'modified') {
     sentences.push(getClauseText('CL_015'));
     clauseIds.push('CL_015');
     ruleIds.push('DT_091');
@@ -423,7 +421,7 @@ function buildP5Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
     ruleIds.push('DT_090');
   }
 
-  if (recommendations.garageSlabOrganics) {
+  if (garage.slabOrganics) {
     sentences.push(getClauseText('CL_016'));
     clauseIds.push('CL_016');
     ruleIds.push('DT_094');
@@ -442,7 +440,7 @@ function buildP5Paragraph(formState: FormState, reviewFlags: ReviewFlag[]): Gene
   return createParagraph({
     id: 'p5',
     sectionId: 'P5',
-    label: 'P5 Garage Recommendation',
+    title: 'P5 Garage Recommendation',
     text: sentences.join(' '),
     order: 60,
     clauseIds,
@@ -478,7 +476,7 @@ function buildP6Paragraph(formState: FormState): GeneratedParagraph | null {
   return createParagraph({
     id: 'p6',
     sectionId: 'P6',
-    label: 'P6 Sulphate Paragraph',
+    title: 'P6 Sulphate Paragraph',
     text: getClauseText(clauseId),
     order: 70,
     clauseIds: [clauseId],
@@ -487,14 +485,14 @@ function buildP6Paragraph(formState: FormState): GeneratedParagraph | null {
 }
 
 function buildP7Paragraph(formState: FormState): GeneratedParagraph | null {
-  if (!formState.reportBody.winterConstruction.includeParagraph) {
+  if (!formState.reportBody.winter.includeParagraph) {
     return null;
   }
 
   return createParagraph({
     id: 'p7',
     sectionId: 'P7',
-    label: 'P7 Winter Paragraph',
+    title: 'P7 Winter Paragraph',
     text: getClauseText('CL_011'),
     order: 80,
     clauseIds: ['CL_011'],
@@ -506,7 +504,7 @@ function buildClosingParagraph(): GeneratedParagraph {
   return createParagraph({
     id: 'closing',
     sectionId: 'CLOSING',
-    label: 'Closing',
+    title: 'Closing',
     text: 'We trust this information is considered satisfactory for your present requirements.',
     order: 90,
     clauseIds: ['P8'],
@@ -528,7 +526,7 @@ function buildSignoffParagraph(formState: FormState): GeneratedParagraph {
   return createParagraph({
     id: 'signoff',
     sectionId: 'SIGNOFF',
-    label: 'Signoff',
+    title: 'Signoff',
     text: signoffLines,
     order: 100,
     clauseIds: ['SIG_01', 'SIG_02', 'SIG_03', 'SIG_04'],
@@ -536,7 +534,7 @@ function buildSignoffParagraph(formState: FormState): GeneratedParagraph {
   });
 }
 
-function collectVisibleSectionIds(paragraphs: GeneratedParagraph[]): SectionId[] {
+function collectVisibleSections(paragraphs: GeneratedParagraph[]): SectionId[] {
   return [...new Map(paragraphs.map((paragraph) => [paragraph.sectionId, paragraph.sectionId])).values()];
 }
 
@@ -556,7 +554,7 @@ function collectRuleRefsUsed(paragraphs: GeneratedParagraph[], reviewFlags: Revi
 
 export function generateLetter(formState: FormState): GenerationResult {
   const reviewFlags: ReviewFlag[] = [];
-  const orderedParagraphs: GeneratedParagraph[] = [];
+  const paragraphs: GeneratedParagraph[] = [];
 
   const topBlock = buildTopBlockParagraph(formState);
   const p1 = buildP1Paragraph(formState);
@@ -569,34 +567,33 @@ export function generateLetter(formState: FormState): GenerationResult {
   const closing = buildClosingParagraph();
   const signoff = buildSignoffParagraph(formState);
 
-  orderedParagraphs.push(topBlock, p1, p2, p3, p4);
+  paragraphs.push(topBlock, p1, p2, p3, p4);
 
   if (p5) {
-    orderedParagraphs.push(p5);
+    paragraphs.push(p5);
   }
 
   if (p6) {
-    orderedParagraphs.push(p6);
+    paragraphs.push(p6);
   }
 
   if (p7) {
-    orderedParagraphs.push(p7);
+    paragraphs.push(p7);
   }
 
-  orderedParagraphs.push(closing, signoff);
-
-  orderedParagraphs.sort((left, right) => left.order - right.order);
+  paragraphs.push(closing, signoff);
+  paragraphs.sort((left, right) => left.order - right.order);
 
   const filename = buildFilename(formState);
   const archivePath = buildArchivePath(formState, filename);
 
   return {
-    visibleSectionIds: collectVisibleSectionIds(orderedParagraphs),
-    orderedParagraphs,
+    paragraphs,
+    visibleSections: collectVisibleSections(paragraphs),
     reviewFlags,
     filename,
     archivePath,
-    clauseRefsUsed: collectClauseRefsUsed(orderedParagraphs, reviewFlags),
-    ruleRefsUsed: collectRuleRefsUsed(orderedParagraphs, reviewFlags)
+    clauseRefsUsed: collectClauseRefsUsed(paragraphs, reviewFlags),
+    ruleRefsUsed: collectRuleRefsUsed(paragraphs, reviewFlags)
   };
 }
